@@ -17,7 +17,11 @@ cmd/shortener/shortener
 
 # Dependency directories (remove the comment below to include it)
 vendor/
+bin/
 
 # IDEs directories
 .idea
 .vscode
+
+# Files
+*.yml
