@@ -17,6 +17,7 @@ func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httproute
 	if r.Body == http.NoBody {
 		http.Error(w, "empty request body", 400)
 		s.log.Error("empty request body")
+
 		return
 	}
 
@@ -25,6 +26,7 @@ func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httproute
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		s.log.Errorf("unable to read request body, err: %s", err)
+
 		return
 	}
 
@@ -32,16 +34,17 @@ func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httproute
 	generatedURL := s.generateShortURL()
 	data[generatedURL] = string(body)
 
+	w.WriteHeader(http.StatusCreated)
+
 	//записываем ссылку в тело ответа
 	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%s/%s", s.cfg.Server.Address, s.cfg.Server.Port, generatedURL)))
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		s.log.Errorf("failed to write response body, err: %s", err)
+
 		return
 	}
 	s.log.Info("URL generated successfully, written to response body")
-
-	w.WriteHeader(http.StatusCreated)
 }
 
 func (s *server) getHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
@@ -57,6 +60,7 @@ func (s *server) getHandler(w http.ResponseWriter, r *http.Request, p httprouter
 	if _, ok := data[id]; !ok {
 		http.Error(w, "can't find url", 400)
 		s.log.Errorf("can't find url in storage. Id: %s", id)
+
 		return
 	}
 
