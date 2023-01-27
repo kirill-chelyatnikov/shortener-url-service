@@ -22,6 +22,3 @@ bin/
 # IDEs directories
 .idea
 .vscode
-
-# Files
-*.yml
