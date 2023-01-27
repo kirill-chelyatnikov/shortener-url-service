@@ -14,12 +14,18 @@ const (
 	DecodeURL = "/:id"
 )
 
-type server struct {
-	log *logrus.Logger
-	cfg *config.Config
+type repository interface {
+	AddURL(shortURL, baseURL string) error
+	GetURLByID(id string) (string, error)
 }
 
-func (s *server) HttpServerStart() {
+type server struct {
+	log        *logrus.Logger
+	cfg        *config.Config
+	repository repository
+}
+
+func (s *server) HTTPServerStart() {
 	router := httprouter.New()
 	router.POST(HomeURL, s.postHandler)
 	router.GET(DecodeURL, s.getHandler)
@@ -28,9 +34,10 @@ func (s *server) HttpServerStart() {
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%s", s.cfg.Server.Address, s.cfg.Server.Port), router))
 }
 
-func NewServer(log *logrus.Logger, cfg *config.Config) *server {
+func NewServer(log *logrus.Logger, cfg *config.Config, repository repository) *server {
 	return &server{
-		log: log,
-		cfg: cfg,
+		log:        log,
+		cfg:        cfg,
+		repository: repository,
 	}
 }

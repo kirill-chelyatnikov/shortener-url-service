@@ -9,9 +9,6 @@ import (
 	"time"
 )
 
-//хранилище
-var data = make(map[string]string)
-
 func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	//проверка на пустоту тела запроса
 	if r.Body == http.NoBody {
@@ -32,7 +29,10 @@ func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httproute
 
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
 	generatedURL := s.generateShortURL()
-	data[generatedURL] = string(body)
+	err = s.repository.AddURL(generatedURL, string(body))
+	if err != nil {
+		s.log.Error(err)
+	}
 
 	w.WriteHeader(http.StatusCreated)
 
@@ -56,17 +56,17 @@ func (s *server) getHandler(w http.ResponseWriter, r *http.Request, p httprouter
 		что роут GET "/" не зарегистрован в приложении. По дефолту отдается ошибка 405.
 	*/
 
-	//проверка нахождения интидификатора в хранилище
-	if _, ok := data[id]; !ok {
-		http.Error(w, "can't find url", 400)
-		s.log.Errorf("can't find url in storage. Id: %s", id)
-
+	//получение url по индетификатору, проверка на его существование
+	url, err := s.repository.GetURLByID(id)
+	if err != nil {
+		http.Error(w, "can't find URL", 400)
+		s.log.Error(err)
 		return
 	}
 
-	w.Header().Set("Location", data[id])
+	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	s.log.Infof("successful redirect to: %s", data[id])
+	s.log.Infof("successful redirect to: %s", url)
 }
 
 // generateShortURL - функция генерации короткого URL
