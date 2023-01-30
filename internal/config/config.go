@@ -10,7 +10,7 @@ const configURL = "internal/config/config.yml"
 type Config struct {
 	Server struct {
 		Address string `yaml:"address"`
-		Port    string `yaml:"port"`
+		Port    int    `yaml:"port"`
 	} `yaml:"server"`
 	App struct {
 		ShortedURLLen uint8 `yaml:"shortedURLLen"`

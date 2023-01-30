@@ -10,14 +10,6 @@ import (
 )
 
 func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-	//проверка на пустоту тела запроса
-	if r.Body == http.NoBody {
-		http.Error(w, "empty request body", 400)
-		s.log.Error("empty request body")
-
-		return
-	}
-
 	//читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -27,17 +19,23 @@ func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httproute
 		return
 	}
 
-	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
-	generatedURL := s.generateShortURL()
-	err = s.repository.AddURL(generatedURL, string(body))
-	if err != nil {
-		s.log.Error(err)
+	//проверка на пустоту тела запроса
+	if len(body) == 0 {
+		http.Error(w, "empty request body", 400)
+		s.log.Error("empty request body")
+
+		return
 	}
 
+	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
+	generatedURL := s.generateShortURL()
+	s.repository.AddURL(generatedURL, string(body))
+
+	//устанавливаем статус-код 201
 	w.WriteHeader(http.StatusCreated)
 
 	//записываем ссылку в тело ответа
-	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%s/%s", s.cfg.Server.Address, s.cfg.Server.Port, generatedURL)))
+	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%d/%s", s.cfg.Server.Address, s.cfg.Server.Port, generatedURL)))
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		s.log.Errorf("failed to write response body, err: %s", err)
