@@ -1,20 +1,19 @@
-package app
+package handlers
 
 import (
 	"fmt"
-	"github.com/julienschmidt/httprouter"
+	"github.com/go-chi/chi"
 	"io"
-	"math/rand"
 	"net/http"
-	"time"
 )
 
-func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
+func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	//читаем тело запроса
 	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
 	if err != nil {
 		http.Error(w, err.Error(), 400)
-		s.log.Errorf("unable to read request body, err: %s", err)
+		h.log.Errorf("unable to read request body, err: %s", err)
 
 		return
 	}
@@ -22,32 +21,32 @@ func (s *server) postHandler(w http.ResponseWriter, r *http.Request, _ httproute
 	//проверка на пустоту тела запроса
 	if len(body) == 0 {
 		http.Error(w, "empty request body", 400)
-		s.log.Error("empty request body")
+		h.log.Error("empty request body")
 
 		return
 	}
 
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
-	generatedURL := s.generateShortURL()
-	s.repository.AddURL(generatedURL, string(body))
+	generatedURL := h.service.GenerateShortURL()
+	h.service.Add(generatedURL, string(body))
 
 	//устанавливаем статус-код 201
 	w.WriteHeader(http.StatusCreated)
 
 	//записываем ссылку в тело ответа
-	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%d/%s", s.cfg.Server.Address, s.cfg.Server.Port, generatedURL)))
+	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%d/%s", h.cfg.Server.Address, h.cfg.Server.Port, generatedURL)))
 	if err != nil {
 		http.Error(w, err.Error(), 400)
-		s.log.Errorf("failed to write response body, err: %s", err)
+		h.log.Errorf("failed to write response body, err: %s", err)
 
 		return
 	}
-	s.log.Info("URL generated successfully, written to response body")
+	h.log.Info("URL generated successfully, written to response body")
 }
 
-func (s *server) getHandler(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 	//получаем интидификатор ссылки из GET-параметра
-	id := p.ByName("id")
+	id := chi.URLParam(r, "id")
 
 	/*
 		отсутствие проверки на пустоту передаваемого интидификатора обусловлена тем,
@@ -55,27 +54,14 @@ func (s *server) getHandler(w http.ResponseWriter, r *http.Request, p httprouter
 	*/
 
 	//получение url по индетификатору, проверка на его существование
-	url, err := s.repository.GetURLByID(id)
+	url, err := h.service.Get(id)
 	if err != nil {
-		http.Error(w, "can't find URL", 400)
-		s.log.Error(err)
+		http.Error(w, err.Error(), 400)
+		h.log.Error(err)
 		return
 	}
 
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	s.log.Infof("successful redirect to: %s", url)
-}
-
-// generateShortURL - функция генерации короткого URL
-func (s *server) generateShortURL() string {
-	rand.Seed(time.Now().UnixNano())
-	var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
-	str := make([]rune, s.cfg.App.ShortedURLLen)
-
-	for i := range str {
-		str[i] = chars[rand.Intn(len(chars))]
-	}
-
-	return string(str)
+	h.log.Infof("successful redirect to: %s", url)
 }

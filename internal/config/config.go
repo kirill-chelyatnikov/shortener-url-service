@@ -5,8 +5,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const configURL = "internal/config/config.yml"
-
 type Config struct {
 	Server struct {
 		Address string `yaml:"address"`
@@ -18,12 +16,13 @@ type Config struct {
 }
 
 // GetConfig - функция получения конфига приложения
-func GetConfig(log *logrus.Logger) *Config {
+func GetConfig(log *logrus.Logger, path string) *Config {
 	var cfg Config
-	err := cleanenv.ReadConfig(configURL, &cfg)
+	err := cleanenv.ReadConfig(path, &cfg)
 	if err != nil {
 		log.Fatalf("can't get config! %s", err)
 	}
+
 	log.Info("config received successfully")
 
 	return &cfg
