@@ -70,6 +70,7 @@ func TestPostHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			body, err := io.ReadAll(resp.Body)
+			defer resp.Body.Close()
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.want.code, resp.StatusCode)
