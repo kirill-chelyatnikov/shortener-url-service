@@ -11,14 +11,14 @@ type storageMap struct {
 }
 
 // AddURL - функция записи данных в storage
-func (s storageMap) AddURL(shortURL, baseURL string) {
+func (s *storageMap) AddURL(shortURL, baseURL string) {
 	s.mutex.Lock()
 	s.data[shortURL] = baseURL
 	s.mutex.Unlock()
 }
 
 // GetURLByID - функция получения записи из storage
-func (s storageMap) GetURLByID(id string) (string, error) {
+func (s *storageMap) GetURLByID(id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
