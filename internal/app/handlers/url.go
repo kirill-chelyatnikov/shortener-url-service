@@ -7,16 +7,17 @@ import (
 	"net/http"
 )
 
+// postHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/"
 func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	//читаем тело запроса
 	body, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		h.log.Errorf("unable to read request body, err: %s", err)
 
 		return
 	}
+	defer r.Body.Close()
 
 	//проверка на пустоту тела запроса
 	if len(body) == 0 {
@@ -36,7 +37,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	//записываем ссылку в тело ответа
 	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%d/%s", h.cfg.Server.Address, h.cfg.Server.Port, generatedURL)))
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), 500)
 		h.log.Errorf("failed to write response body, err: %s", err)
 
 		return
@@ -44,6 +45,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	h.log.Info("URL generated successfully, written to response body")
 }
 
+// getHandler - функция-хэндлер для обработки GET запросов, отслеживаемый путь: "/{id}"
 func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 	//получаем интидификатор ссылки из GET-параметра
 	id := chi.URLParam(r, "id")

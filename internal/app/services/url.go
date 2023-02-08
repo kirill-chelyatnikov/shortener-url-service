@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
+// Add - функция сервиса для добавления записи
 func (s *ServiceURL) Add(shortURL, baseURL string) {
 	s.repository.AddURL(shortURL, baseURL)
 }
 
+// Get - функция сервиса для получение записи по ID
 func (s *ServiceURL) Get(id string) (string, error) {
 	return s.repository.GetURLByID(id)
 }
