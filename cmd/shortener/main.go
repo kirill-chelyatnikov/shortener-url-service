@@ -15,7 +15,7 @@ func main() {
 	log := logger.InitLogger()
 	cfg := config.GetConfig(log, configURL)
 
-	repository := storage.NewStorage()
+	repository := storage.NewStorage(log)
 	ServiceURL := services.NewServiceURL(log, cfg, repository)
 	handler := handlers.NewHandler(log, cfg, ServiceURL)
 	server.HTTPServerStart(log, cfg, handler.InitRoutes())

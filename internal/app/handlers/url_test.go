@@ -21,7 +21,7 @@ const testConfigURL = "../../config/config.yml"
 //инициализация необходимых зависимостей
 var log = logger.InitLogger()
 var cfg = config.GetConfig(log, testConfigURL)
-var repository = storage.NewStorage()
+var repository = storage.NewStorage(log)
 var serviceURL = services.NewServiceURL(log, cfg, repository)
 var h = NewHandler(log, cfg, serviceURL)
 
@@ -149,6 +149,76 @@ func TestGetHandler(t *testing.T) {
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.want.err, strings.TrimRight(string(body), "\n"))
+		})
+	}
+}
+
+func TestApiHandler(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+	}
+
+	tests := []struct {
+		name    string
+		body    string
+		want    want
+		textErr string
+		wantErr bool
+	}{
+		{
+			name: "positive_test",
+			body: "{\"url\":\"https://www.google.com\"}",
+			want: want{
+				code:        201,
+				contentType: "application/json; charset=utf-8",
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty_body",
+			body: "",
+			want: want{
+				code:        400,
+				contentType: "text/plain; charset=utf-8",
+			},
+			textErr: "empty request body",
+			wantErr: true,
+		},
+		{
+			name: "incorrect_url_param",
+			body: "{\"url123\":\"https://www.google.com\"}",
+			want: want{
+				code:        400,
+				contentType: "text/plain; charset=utf-8",
+			},
+			textErr: "empty url received",
+			wantErr: true,
+		},
+	}
+
+	router := chi.NewRouter()
+	router.Post("/api/shorten", h.apiHandler)
+	ts := httptest.NewServer(router)
+	defer ts.Close()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/shorten", ts.URL), strings.NewReader(tt.body))
+			require.NoError(t, err)
+
+			response, err := http.DefaultClient.Do(request)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.want.code, response.StatusCode)
+			assert.Equal(t, tt.want.contentType, response.Header.Get("Content-Type"))
+
+			if tt.wantErr {
+				body, err := io.ReadAll(response.Body)
+				require.NoError(t, err)
+
+				assert.Equal(t, tt.textErr, strings.TrimRight(string(body), "\n"))
+			}
 		})
 	}
 }

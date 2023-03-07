@@ -10,6 +10,7 @@ import (
 const (
 	HomeURL   = "/"
 	DecodeURL = "/{id}"
+	ApiURL    = "/api/shorten"
 )
 
 type Handler struct {
@@ -18,8 +19,16 @@ type Handler struct {
 	service ServiceInterface
 }
 
+type ApiHandlerRequest struct {
+	URL string `json:"url"`
+}
+
+type ApiHandlerResponse struct {
+	Result string `json:"result"`
+}
+
 type ServiceInterface interface {
-	Add(shortURL, baseURL string)
+	Add(shortURL, baseURL string) error
 	Get(id string) (string, error)
 	GenerateShortURL() string
 }
@@ -32,6 +41,7 @@ func (h *Handler) InitRoutes() chi.Router {
 	router.Use(middleware.Recoverer)
 
 	router.Post(HomeURL, h.postHandler)
+	router.Post(ApiURL, h.apiHandler)
 	router.Get(DecodeURL, h.getHandler)
 
 	return router

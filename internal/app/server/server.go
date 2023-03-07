@@ -10,6 +10,6 @@ import (
 
 // HTTPServerStart - функция запуска HTTP сервера
 func HTTPServerStart(log *logrus.Logger, cfg *config.Config, router chi.Router) {
-	log.Infof("starting server on port %d", cfg.Server.Port)
+	log.Infof("starting %s on port %d", cfg.Server.Address, cfg.Server.Port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", cfg.Server.Address, cfg.Server.Port), router))
 }

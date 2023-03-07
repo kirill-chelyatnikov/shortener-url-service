@@ -1,13 +1,20 @@
 package services
 
 import (
+	"errors"
 	"math/rand"
 	"time"
 )
 
 // Add - функция сервиса для добавления записи
-func (s *ServiceURL) Add(shortURL, baseURL string) {
+func (s *ServiceURL) Add(shortURL, baseURL string) error {
+	if len(shortURL) == 0 || len(baseURL) == 0 {
+		return errors.New("empty url received")
+	}
+
 	s.repository.AddURL(shortURL, baseURL)
+
+	return nil
 }
 
 // Get - функция сервиса для получение записи по ID

@@ -2,10 +2,12 @@ package storage
 
 import (
 	"fmt"
+	"github.com/sirupsen/logrus"
 	"sync"
 )
 
 type storageMap struct {
+	log   *logrus.Logger
 	mutex sync.RWMutex
 	data  map[string]string
 }
@@ -15,6 +17,7 @@ func (s *storageMap) AddURL(shortURL, baseURL string) {
 	s.mutex.Lock()
 	s.data[shortURL] = baseURL
 	s.mutex.Unlock()
+	s.log.Infof("success write to storage: key - %s, value - %s", shortURL, baseURL)
 }
 
 // GetURLByID - функция получения записи из storage
@@ -29,8 +32,9 @@ func (s *storageMap) GetURLByID(id string) (string, error) {
 	return s.data[id], nil
 }
 
-func NewStorage() *storageMap {
+func NewStorage(log *logrus.Logger) *storageMap {
 	return &storageMap{
+		log:  log,
 		data: make(map[string]string),
 	}
 }
