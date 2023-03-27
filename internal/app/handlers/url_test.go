@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"github.com/go-chi/chi"
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/storage"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
@@ -21,7 +22,7 @@ const testConfigURL = "../../config/config.yml"
 //инициализация необходимых зависимостей
 var log = logger.InitLogger()
 var cfg = config.GetConfig(log, testConfigURL)
-var repository = storage.NewStorage(log)
+var repository = storage.NewStorage(log, cfg)
 var serviceURL = services.NewServiceURL(log, cfg, repository)
 var h = NewHandler(log, cfg, serviceURL)
 
@@ -126,7 +127,10 @@ func TestGetHandler(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get("/{id}", h.getHandler)
 
-	repository.AddURL("testUser", "https://google.com")
+	repository.AddURL(&models.Link{
+		Id:      "testUser",
+		BaseURL: "https://google.com",
+	})
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

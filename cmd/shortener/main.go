@@ -15,7 +15,12 @@ func main() {
 	log := logger.InitLogger()
 	cfg := config.GetConfig(log, configURL)
 
-	repository := storage.NewStorage(log)
+	repository := storage.NewStorage(log, cfg)
+	defer func() {
+		if err := repository.Close(); err != nil {
+			log.Errorf("can't close file, err: %s", err)
+		}
+	}()
 	ServiceURL := services.NewServiceURL(log, cfg, repository)
 	handler := handlers.NewHandler(log, cfg, ServiceURL)
 	server.HTTPServerStart(log, cfg, handler.InitRoutes())

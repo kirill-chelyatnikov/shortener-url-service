@@ -2,17 +2,18 @@ package services
 
 import (
 	"errors"
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"math/rand"
 	"time"
 )
 
 // Add - функция сервиса для добавления записи
-func (s *ServiceURL) Add(shortURL, baseURL string) error {
-	if len(shortURL) == 0 || len(baseURL) == 0 {
+func (s *ServiceURL) Add(link *models.Link) error {
+	if len(link.Id) == 0 || len(link.BaseURL) == 0 {
 		return errors.New("empty url received")
 	}
 
-	s.repository.AddURL(shortURL, baseURL)
+	s.repository.AddURL(link)
 
 	return nil
 }

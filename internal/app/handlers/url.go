@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"io"
 	"net/http"
 )
@@ -30,7 +31,11 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
 	generatedURL := h.service.GenerateShortURL()
-	h.service.Add(generatedURL, string(body))
+	link := &models.Link{
+		Id:      generatedURL,
+		BaseURL: string(body),
+	}
+	h.service.Add(link)
 
 	//устанавливаем статус-код 201
 	w.WriteHeader(http.StatusCreated)
@@ -108,7 +113,11 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	//генерируем ссылку и записываем её в хранилище
 	generatedURL := h.service.GenerateShortURL()
-	err = h.service.Add(generatedURL, apiHandlerRequest.URL)
+	link := &models.Link{
+		Id:      generatedURL,
+		BaseURL: apiHandlerRequest.URL,
+	}
+	err = h.service.Add(link)
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		h.log.Errorf("cant't add URL, err: %s", err)

@@ -3,6 +3,7 @@ package handlers
 import (
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +29,7 @@ type ApiHandlerResponse struct {
 }
 
 type ServiceInterface interface {
-	Add(shortURL, baseURL string) error
+	Add(link *models.Link) error
 	Get(id string) (string, error)
 	GenerateShortURL() string
 }
