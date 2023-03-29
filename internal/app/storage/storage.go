@@ -6,10 +6,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// NewStorage - функция получения хранилища в зафисимости от выбранного способа хранить ссылки (Map / File)
 func NewStorage(log *logrus.Logger, cfg *config.Config) services.RepositoryInterface {
 	if cfg.App.FileStorage != "" {
-		return NewStorageFile(log, cfg)
+		return NewFileStorage(log)
 	}
 
-	return NewStorageMap(log)
+	return NewMapStorage(log)
 }

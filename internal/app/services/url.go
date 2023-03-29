@@ -13,7 +13,10 @@ func (s *ServiceURL) Add(link *models.Link) error {
 		return errors.New("empty url received")
 	}
 
-	s.repository.AddURL(link)
+	err := s.repository.AddURL(link)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

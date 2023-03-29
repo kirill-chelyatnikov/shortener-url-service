@@ -7,14 +7,14 @@ import (
 	"sync"
 )
 
-type storageMap struct {
+type MapStorage struct {
 	log   *logrus.Logger
 	mutex sync.RWMutex
 	data  map[string]string
 }
 
 // AddURL - функция записи данных в storage (map)
-func (s *storageMap) AddURL(link *models.Link) error {
+func (s *MapStorage) AddURL(link *models.Link) error {
 	s.mutex.Lock()
 	s.data[link.Id] = link.BaseURL
 	s.mutex.Unlock()
@@ -24,7 +24,7 @@ func (s *storageMap) AddURL(link *models.Link) error {
 }
 
 // GetURLByID - функция получения записи из storage (map)
-func (s *storageMap) GetURLByID(id string) (string, error) {
+func (s *MapStorage) GetURLByID(id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -35,13 +35,13 @@ func (s *storageMap) GetURLByID(id string) (string, error) {
 	return s.data[id], nil
 }
 
-func (s *storageMap) Close() error {
-
+// Close - функция-заглушка для удовлетворения интерфейсу RepositoryInterface
+func (s *MapStorage) Close() error {
 	return nil
 }
 
-func NewStorageMap(log *logrus.Logger) *storageMap {
-	return &storageMap{
+func NewMapStorage(log *logrus.Logger) *MapStorage {
+	return &MapStorage{
 		log:  log,
 		data: make(map[string]string),
 	}

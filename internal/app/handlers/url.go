@@ -19,7 +19,12 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			h.log.Errorf("can't close Body, err: %s", err)
+		}
+	}(r.Body)
 
 	//проверка на пустоту тела запроса
 	if len(body) == 0 {
@@ -35,7 +40,14 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		Id:      generatedURL,
 		BaseURL: string(body),
 	}
-	h.service.Add(link)
+
+	err = h.service.Add(link)
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		h.log.Error(err)
+
+		return
+	}
 
 	//устанавливаем статус-код 201
 	w.WriteHeader(http.StatusCreated)

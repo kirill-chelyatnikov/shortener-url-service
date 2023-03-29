@@ -33,7 +33,7 @@ type flags struct {
 
 // GetConfig - функция получения конфига приложения
 func GetConfig(log *logrus.Logger, path string) *Config {
-	//структуры конфига и переменных окружения
+	// объявление структур конфига, переменных окружения, флагов
 	var cfg Config
 	var environment Environment
 	var fl flags
@@ -51,8 +51,8 @@ func GetConfig(log *logrus.Logger, path string) *Config {
 	flag.StringVar(&fl.ServerAddress, "a", "localhost", "server address")
 	flag.StringVar(&fl.BaseURL, "b", "localhost", "base url")
 	flag.StringVar(&fl.FileStorage, "f", "", "file storage")
-	flag.Parse()
 
+	// замена значений конфига при условии передачи переменных окружения или флагов (переменные окружения в приоритете)
 	if environment.ServerAddress != "" {
 		cfg.Server.Address = environment.ServerAddress
 	} else {

@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
-	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 	"github.com/sirupsen/logrus"
-	"log"
 	"os"
 	"sync"
 )
 
-type storageFile struct {
+type FileStorage struct {
 	log     *logrus.Logger
 	mutex   sync.RWMutex
 	file    *os.File
@@ -20,29 +18,35 @@ type storageFile struct {
 }
 
 // AddURL - функция записи данных в storage (file)
-func (s *storageFile) AddURL(link *models.Link) error {
+func (s *FileStorage) AddURL(link *models.Link) error {
+	s.mutex.Lock()
 	if err := s.encoder.Encode(link); err != nil {
 		return fmt.Errorf("can't encode data to add it to file, err: %s", err)
 	}
+	s.mutex.Unlock()
+	s.log.Infof("success write to file storage: id - %s, value - %s", link.Id, link.BaseURL)
 
 	return nil
 }
 
 // GetURLByID - функция получения записи из storage (file)
-func (s *storageFile) GetURLByID(id string) (string, error) {
+func (s *FileStorage) GetURLByID(id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	f, err := os.Open(os.Getenv("FILE_STORAGE_PATH"))
 	if err != nil {
-		log.Fatalf("cant't create file storage, err: %s", err)
+		s.log.Fatalf("cant't create file storage, err: %s", err)
 	}
 
 	s.decoder = json.NewDecoder(f)
 	var link models.Link
 
 	for s.decoder.More() {
-		s.decoder.Decode(&link)
+		err = s.decoder.Decode(&link)
+		if err != nil {
+			s.log.Fatalf("can't decode link, err: %s", err)
+		}
 		if link.Id == id {
 			return link.BaseURL, nil
 		}
@@ -51,7 +55,7 @@ func (s *storageFile) GetURLByID(id string) (string, error) {
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
 
-func (s *storageFile) Close() error {
+func (s *FileStorage) Close() error {
 	err := s.file.Close()
 	if err != nil {
 		return err
@@ -60,21 +64,15 @@ func (s *storageFile) Close() error {
 	return nil
 }
 
-func NewStorageFile(log *logrus.Logger, cfg *config.Config) *storageFile {
+func NewFileStorage(log *logrus.Logger) *FileStorage {
 	f, err := os.OpenFile(os.Getenv("FILE_STORAGE_PATH"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatalf("cant't create file storage, err: %s", err)
 	}
 
-	return &storageFile{
+	return &FileStorage{
 		log:     log,
 		file:    f,
 		encoder: json.NewEncoder(f),
-	}
-}
-
-func (s *storageFile) CheckAndCloseFile(cfg *config.Config) {
-	if cfg.App.FileStorage != "" {
-		s.file.Close()
 	}
 }

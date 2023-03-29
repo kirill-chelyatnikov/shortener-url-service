@@ -127,10 +127,11 @@ func TestGetHandler(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get("/{id}", h.getHandler)
 
-	repository.AddURL(&models.Link{
+	err := repository.AddURL(&models.Link{
 		Id:      "testUser",
 		BaseURL: "https://google.com",
 	})
+	assert.NoError(t, err)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
