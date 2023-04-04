@@ -16,9 +16,9 @@ type MapStorage struct {
 // AddURL - функция записи данных в storage (map)
 func (s *MapStorage) AddURL(link *models.Link) error {
 	s.mutex.Lock()
-	s.data[link.Id] = link.BaseURL
+	s.data[link.ID] = link.BaseURL
 	s.mutex.Unlock()
-	s.log.Infof("success write to map storage: id - %s, value - %s", link.Id, link.BaseURL)
+	s.log.Infof("success write to map storage: id - %s, value - %s", link.ID, link.BaseURL)
 
 	return nil
 }

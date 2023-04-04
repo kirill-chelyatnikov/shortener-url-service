@@ -25,7 +25,7 @@ func (s *FileStorage) AddURL(link *models.Link) error {
 		return fmt.Errorf("can't encode data to add it to file, err: %s", err)
 	}
 	s.mutex.Unlock()
-	s.log.Infof("success write to file storage: id - %s, value - %s", link.Id, link.BaseURL)
+	s.log.Infof("success write to file storage: id - %s, value - %s", link.ID, link.BaseURL)
 
 	return nil
 }
@@ -48,7 +48,7 @@ func (s *FileStorage) GetURLByID(id string) (string, error) {
 		if err != nil {
 			s.log.Fatalf("can't decode link, err: %s", err)
 		}
-		if link.Id == id {
+		if link.ID == id {
 			return link.BaseURL, nil
 		}
 	}

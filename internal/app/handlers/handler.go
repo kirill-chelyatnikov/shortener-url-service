@@ -16,7 +16,7 @@ import (
 const (
 	HomeURL   = "/"
 	DecodeURL = "/{id}"
-	ApiURL    = "/api/shorten"
+	APIURL    = "/api/shorten"
 )
 
 var ContentTypesToEncode = []string{
@@ -34,11 +34,11 @@ type Handler struct {
 	service serviceInterface
 }
 
-type ApiHandlerRequest struct {
+type APIHandlerRequest struct {
 	URL string `json:"url"`
 }
 
-type ApiHandlerResponse struct {
+type APIHandlerResponse struct {
 	Result string `json:"result"`
 }
 
@@ -136,7 +136,7 @@ func (h *Handler) InitRoutes() chi.Router {
 	router.Use(GzipMiddlewareRequest)
 
 	router.Post(HomeURL, h.postHandler)
-	router.Post(ApiURL, h.apiHandler)
+	router.Post(APIURL, h.apiHandler)
 	router.Get(DecodeURL, h.getHandler)
 
 	return router

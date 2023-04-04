@@ -1,6 +1,6 @@
 package models
 
 type Link struct {
-	Id      string
+	ID      string
 	BaseURL string
 }

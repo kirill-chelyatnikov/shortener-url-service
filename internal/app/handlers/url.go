@@ -37,7 +37,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
 	generatedURL := h.service.GenerateShortURL()
 	link := &models.Link{
-		Id:      generatedURL,
+		ID:      generatedURL,
 		BaseURL: string(body),
 	}
 
@@ -97,7 +97,12 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	defer r.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			h.log.Errorf("can't close body request, err: %s", err)
+		}
+	}(r.Body)
 
 	//проверка на пустоту тела запроса
 	if len(body) == 0 {
@@ -108,8 +113,8 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//создаём структуры для получения и отправки данных
-	apiHandlerRequest := &ApiHandlerRequest{}
-	apiHandlerResponse := &ApiHandlerResponse{}
+	apiHandlerRequest := &APIHandlerRequest{}
+	apiHandlerResponse := &APIHandlerResponse{}
 
 	/*
 		записываем полученный json-объект в заранее созданную структуру.
@@ -126,7 +131,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	//генерируем ссылку и записываем её в хранилище
 	generatedURL := h.service.GenerateShortURL()
 	link := &models.Link{
-		Id:      generatedURL,
+		ID:      generatedURL,
 		BaseURL: apiHandlerRequest.URL,
 	}
 	err = h.service.Add(link)

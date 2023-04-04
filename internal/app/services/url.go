@@ -9,7 +9,7 @@ import (
 
 // Add - функция сервиса для добавления записи
 func (s *ServiceURL) Add(link *models.Link) error {
-	if len(link.Id) == 0 || len(link.BaseURL) == 0 {
+	if len(link.ID) == 0 || len(link.BaseURL) == 0 {
 		return errors.New("empty url received")
 	}
 

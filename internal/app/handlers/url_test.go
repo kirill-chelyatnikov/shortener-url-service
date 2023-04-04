@@ -71,9 +71,13 @@ func TestPostHandler(t *testing.T) {
 			resp, err := http.DefaultClient.Do(request)
 			require.NoError(t, err)
 
-			body, err := io.ReadAll(resp.Body)
-			defer resp.Body.Close()
+			var body []byte
+			body, err = io.ReadAll(resp.Body)
 			require.NoError(t, err)
+			defer func(Body io.ReadCloser) {
+				err = Body.Close()
+				require.NoError(t, err)
+			}(resp.Body)
 
 			assert.Equal(t, tt.want.code, resp.StatusCode)
 
@@ -129,7 +133,7 @@ func TestGetHandler(t *testing.T) {
 	router.Get("/{id}", h.getHandler)
 
 	err := repository.AddURL(&models.Link{
-		Id:      "testUser",
+		ID:      "testUser",
 		BaseURL: "https://google.com",
 	})
 	assert.NoError(t, err)
@@ -220,8 +224,13 @@ func TestApiHandler(t *testing.T) {
 			assert.Equal(t, tt.want.contentType, response.Header.Get("Content-Type"))
 
 			if tt.wantErr {
-				body, err := io.ReadAll(response.Body)
+				var body []byte
+				body, err = io.ReadAll(response.Body)
 				require.NoError(t, err)
+				defer func(Body io.ReadCloser) {
+					err = Body.Close()
+					require.NoError(t, err)
+				}(response.Body)
 
 				assert.Equal(t, tt.textErr, strings.TrimRight(string(body), "\n"))
 			}
