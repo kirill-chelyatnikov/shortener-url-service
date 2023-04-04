@@ -53,7 +53,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
 	//записываем ссылку в тело ответа
-	_, err = w.Write([]byte(fmt.Sprintf("http://%s:%d/%s", h.cfg.App.BaseURL, h.cfg.Server.Port, generatedURL)))
+	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, generatedURL)))
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 		h.log.Errorf("failed to write response body, err: %s", err)
@@ -138,7 +138,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//записываем результат в структуру ответа
-	apiHandlerResponse.Result = fmt.Sprintf("http://%s:%d/%s", h.cfg.App.BaseURL, h.cfg.Server.Port, generatedURL)
+	apiHandlerResponse.Result = fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, generatedURL)
 
 	//записываем результат в виде json-объекта
 	result, err := json.Marshal(apiHandlerResponse)
