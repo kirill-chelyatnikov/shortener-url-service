@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/handlers"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/server"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -12,8 +13,10 @@ import (
 const configURL = "internal/config/config.yml"
 
 func main() {
-	log := logger.InitLogger()
 	fl := config.GetFlags()
+	flag.Parse()
+
+	log := logger.InitLogger()
 	cfg := config.GetConfig(log, configURL, fl)
 
 	repository := storage.NewStorage(log, cfg)

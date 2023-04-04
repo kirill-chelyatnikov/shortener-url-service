@@ -21,7 +21,8 @@ const testConfigURL = "../../config/config.yml"
 
 //инициализация необходимых зависимостей
 var log = logger.InitLogger()
-var cfg = config.GetConfig(log, testConfigURL)
+var fl = config.GetFlags()
+var cfg = config.GetConfig(log, testConfigURL, fl)
 var repository = storage.NewStorage(log, cfg)
 var serviceURL = services.NewServiceURL(log, cfg, repository)
 var h = NewHandler(log, cfg, serviceURL)

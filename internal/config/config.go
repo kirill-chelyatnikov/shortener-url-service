@@ -25,14 +25,14 @@ type Environment struct {
 	FileStorage   string `env:"FILE_STORAGE_PATH"`
 }
 
-type flags struct {
+type Flags struct {
 	ServerAddress string
 	BaseURL       string
 	FileStorage   string
 }
 
 // GetConfig - функция получения конфига приложения
-func GetConfig(log *logrus.Logger, path string, fl *flags) *Config {
+func GetConfig(log *logrus.Logger, path string, fl *Flags) *Config {
 	// объявление структур конфига, переменных окружения, флагов
 	var cfg Config
 	var environment Environment
@@ -70,13 +70,12 @@ func GetConfig(log *logrus.Logger, path string, fl *flags) *Config {
 	return &cfg
 }
 
-func GetFlags() *flags {
-	var fl flags
+func GetFlags() *Flags {
+	var fl Flags
 
 	flag.StringVar(&fl.ServerAddress, "a", "localhost:8080", "server address")
 	flag.StringVar(&fl.BaseURL, "b", "http://localhost:8080", "base url")
 	flag.StringVar(&fl.FileStorage, "f", "", "file storage")
-	flag.Parse()
 
 	return &fl
 }
