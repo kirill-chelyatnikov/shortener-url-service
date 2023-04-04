@@ -68,13 +68,9 @@ func TestPostHandler(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, ts.URL, strings.NewReader(tt.requestBody))
 			require.NoError(t, err)
 
-			defer func(Body io.ReadCloser) {
-				err = Body.Close()
-				require.NoError(t, err)
-			}(request.Body)
-
 			resp, err := http.DefaultClient.Do(request)
 			require.NoError(t, err)
+			defer resp.Body.Close()
 
 			var body []byte
 			body, err = io.ReadAll(resp.Body)
@@ -217,13 +213,9 @@ func TestApiHandler(t *testing.T) {
 			request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/shorten", ts.URL), strings.NewReader(tt.body))
 			require.NoError(t, err)
 
-			defer func(Body io.ReadCloser) {
-				err = Body.Close()
-				require.NoError(t, err)
-			}(request.Body)
-
 			response, err := http.DefaultClient.Do(request)
 			require.NoError(t, err)
+			defer response.Body.Close()
 
 			assert.Equal(t, tt.want.code, response.StatusCode)
 			assert.Equal(t, tt.want.contentType, response.Header.Get("Content-Type"))
