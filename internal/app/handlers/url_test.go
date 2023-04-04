@@ -78,7 +78,7 @@ func TestPostHandler(t *testing.T) {
 
 			if !tt.wantErr {
 				id := strings.TrimPrefix(string(body),
-					fmt.Sprintf("http://%s:%d/", cfg.Server.Address, cfg.Server.Port))
+					fmt.Sprintf("http://%s/", cfg.Server.Address))
 				_, err = serviceURL.Get(id)
 				assert.NoError(t, err)
 
