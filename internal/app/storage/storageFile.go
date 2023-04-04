@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 	"github.com/sirupsen/logrus"
 	"os"
 	"sync"
@@ -34,9 +35,9 @@ func (s *FileStorage) GetURLByID(id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	f, err := os.Open(os.Getenv("FILE_STORAGE_PATH"))
+	f, err := os.Open(s.file.Name())
 	if err != nil {
-		s.log.Fatalf("cant't create file storage, err: %s", err)
+		s.log.Fatalf("cant't open file storage, err: %s", err)
 	}
 
 	s.decoder = json.NewDecoder(f)
@@ -64,8 +65,8 @@ func (s *FileStorage) Close() error {
 	return nil
 }
 
-func NewFileStorage(log *logrus.Logger) *FileStorage {
-	f, err := os.OpenFile(os.Getenv("FILE_STORAGE_PATH"), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+func NewFileStorage(log *logrus.Logger, cfg *config.Config) *FileStorage {
+	f, err := os.OpenFile(cfg.App.FileStorage, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
 	if err != nil {
 		log.Fatalf("cant't create file storage, err: %s", err)
 	}

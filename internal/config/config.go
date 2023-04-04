@@ -20,8 +20,6 @@ type Config struct {
 }
 
 type Environment struct {
-	//ServerHost    string `env:"SERVER_HOST"`
-	//ServerPort    string `env:"SERVER_PORT"`
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	BaseURL       string `env:"BASE_URL"`
 	FileStorage   string `env:"FILE_STORAGE_PATH"`
@@ -29,17 +27,15 @@ type Environment struct {
 
 type flags struct {
 	ServerAddress string
-	//ServerPort    string
-	BaseURL     string
-	FileStorage string
+	BaseURL       string
+	FileStorage   string
 }
 
 // GetConfig - функция получения конфига приложения
-func GetConfig(log *logrus.Logger, path string) *Config {
+func GetConfig(log *logrus.Logger, path string, fl *flags) *Config {
 	// объявление структур конфига, переменных окружения, флагов
 	var cfg Config
 	var environment Environment
-	var fl flags
 
 	err := cleanenv.ReadConfig(path, &cfg)
 	if err != nil {
@@ -50,33 +46,6 @@ func GetConfig(log *logrus.Logger, path string) *Config {
 	if err != nil {
 		log.Fatalf("can't get environments! %s", err)
 	}
-
-	flag.StringVar(&fl.ServerAddress, "a", cfg.Server.Address, "server address")
-	//flag.StringVar(&fl.ServerPort, "p", strconv.Itoa(cfg.Server.Port), "server port")
-	flag.StringVar(&fl.BaseURL, "b", cfg.App.BaseURL, "base url")
-	flag.StringVar(&fl.FileStorage, "f", "", "file storage")
-
-	// замена значений конфига при условии передачи переменных окружения или флагов (переменные окружения в приоритете)
-	//if environment.ServerHost != "" {
-	//	cfg.Server.Address = environment.ServerHost
-	//} else {
-	//	cfg.Server.Address = fl.ServerAddress
-	//}
-	//
-	//var port int
-	//if environment.ServerPort != "" {
-	//	port, err = strconv.Atoi(environment.ServerPort)
-	//	if err != nil {
-	//		log.Fatalf("can't parse port from env, err: %s", err)
-	//	}
-	//	cfg.Server.Port = port
-	//} else {
-	//	port, err = strconv.Atoi(fl.ServerPort)
-	//	if err != nil {
-	//		log.Fatalf("can't parse port from flag, err: %s", err)
-	//	}
-	//	cfg.Server.Port = port
-	//}
 
 	if environment.ServerAddress != "" {
 		cfg.Server.Address = environment.ServerAddress
@@ -99,4 +68,15 @@ func GetConfig(log *logrus.Logger, path string) *Config {
 	log.Info("config received successfully")
 
 	return &cfg
+}
+
+func GetFlags() *flags {
+	var fl flags
+
+	flag.StringVar(&fl.ServerAddress, "a", "localhost:8080", "server address")
+	flag.StringVar(&fl.BaseURL, "b", "http://localhost:8080", "base url")
+	flag.StringVar(&fl.FileStorage, "f", "", "file storage")
+	flag.Parse()
+
+	return &fl
 }
