@@ -71,13 +71,14 @@ func TestPostHandler(t *testing.T) {
 			resp, err := http.DefaultClient.Do(request)
 			require.NoError(t, err)
 
-			var body []byte
-			body, err = io.ReadAll(resp.Body)
-			require.NoError(t, err)
 			defer func(Body io.ReadCloser) {
 				err = Body.Close()
 				require.NoError(t, err)
 			}(resp.Body)
+
+			var body []byte
+			body, err = io.ReadAll(resp.Body)
+			require.NoError(t, err)
 
 			assert.Equal(t, tt.want.code, resp.StatusCode)
 
@@ -219,6 +220,10 @@ func TestApiHandler(t *testing.T) {
 
 			response, err := http.DefaultClient.Do(request)
 			require.NoError(t, err)
+			defer func(Body io.ReadCloser) {
+				err = Body.Close()
+				require.NoError(t, err)
+			}(response.Body)
 
 			assert.Equal(t, tt.want.code, response.StatusCode)
 			assert.Equal(t, tt.want.contentType, response.Header.Get("Content-Type"))
@@ -227,10 +232,6 @@ func TestApiHandler(t *testing.T) {
 				var body []byte
 				body, err = io.ReadAll(response.Body)
 				require.NoError(t, err)
-				defer func(Body io.ReadCloser) {
-					err = Body.Close()
-					require.NoError(t, err)
-				}(response.Body)
 
 				assert.Equal(t, tt.textErr, strings.TrimRight(string(body), "\n"))
 			}
