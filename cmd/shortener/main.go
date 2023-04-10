@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/handlers"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/server"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -12,10 +13,18 @@ import (
 const configURL = "internal/config/config.yml"
 
 func main() {
-	log := logger.InitLogger()
-	cfg := config.GetConfig(log, configURL)
+	fl := config.GetFlags()
+	flag.Parse()
 
-	repository := storage.NewStorage()
+	log := logger.InitLogger()
+	cfg := config.GetConfig(log, configURL, fl)
+
+	repository := storage.NewStorage(log, cfg)
+	defer func() {
+		if err := repository.Close(); err != nil {
+			log.Errorf("can't close file, err: %s", err)
+		}
+	}()
 	ServiceURL := services.NewServiceURL(log, cfg, repository)
 	handler := handlers.NewHandler(log, cfg, ServiceURL)
 	server.HTTPServerStart(log, cfg, handler.InitRoutes())

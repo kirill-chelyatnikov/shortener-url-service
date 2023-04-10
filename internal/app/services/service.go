@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 	"github.com/sirupsen/logrus"
 )
@@ -12,8 +13,9 @@ type ServiceURL struct {
 }
 
 type RepositoryInterface interface {
-	AddURL(shortURL, baseURL string)
+	AddURL(link *models.Link) error
 	GetURLByID(id string) (string, error)
+	Close() error
 }
 
 func NewServiceURL(log *logrus.Logger, cfg *config.Config, repository RepositoryInterface) *ServiceURL {
