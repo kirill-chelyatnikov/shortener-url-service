@@ -16,6 +16,7 @@ type Config struct {
 		ShortedURLLen uint8  `yaml:"shortedURLLen"`
 		BaseURL       string `yaml:"baseURL"`
 		FileStorage   string `yaml:"fileStorage"`
+		SecretKey     string `yaml:"secretKey"`
 	} `yaml:"app"`
 }
 

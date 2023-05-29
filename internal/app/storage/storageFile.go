@@ -55,6 +55,16 @@ func (s *FileStorage) GetURLByID(id string) (string, error) {
 
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
+func (s *FileStorage) GetAllURLSByHash(hash string) ([]*models.Link, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
+	//links := make([]models.Link, 0)
+	//
+	//for s
+
+	return nil, nil
+}
 
 func (s *FileStorage) Close() error {
 	err := s.file.Close()

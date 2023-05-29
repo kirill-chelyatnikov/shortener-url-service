@@ -2,6 +2,10 @@ package handlers
 
 import (
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
@@ -9,15 +13,20 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
 	"io"
+	"math/rand"
 	"net/http"
 	"strings"
+	"time"
 )
 
 const (
-	HomeURL   = "/"
-	DecodeURL = "/{id}"
-	APIURL    = "/api/shorten"
+	HomeURL    = "/"
+	DecodeURL  = "/{id}"
+	APIURL     = "/api/shorten"
+	APIALLURLS = "/api/user/urls"
 )
+
+var CookieKey = []byte("cookie_key_7385746739")
 
 var ContentTypesToEncode = []string{
 	"application/javascript",
@@ -42,10 +51,15 @@ type APIHandlerResponse struct {
 	Result string `json:"result"`
 }
 
+type APIGETAllResponse struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
 type serviceInterface interface {
 	Add(link *models.Link) error
 	Get(id string) (string, error)
-	GenerateShortURL() string
+	GetAll(hash string) ([]*models.Link, error)
 }
 
 type gzipWriter struct {
@@ -125,6 +139,59 @@ func GzipMiddlewareRequest(next http.Handler) http.Handler {
 	})
 }
 
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authCookie, _ := r.Cookie("auth")
+		hashCookie, _ := r.Cookie("hash")
+		if authCookie == nil || hashCookie == nil || !verifyCookie(authCookie.Value, hashCookie.Value) {
+			setAuthCookie(w, r)
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func setAuthCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
+	cookie := GenerateRandomString()
+	authCookie := &http.Cookie{Name: "auth", Value: cookie, Path: "/"}
+	hashCookie := &http.Cookie{Name: "hash", Value: encryptCookie([]byte(cookie)), Path: "/"}
+	http.SetCookie(w, authCookie)
+	http.SetCookie(w, hashCookie)
+	r.Header.Set("Cookie", fmt.Sprintf("auth=%s; hash=%s", authCookie.Value, hashCookie.Value))
+	return hashCookie
+}
+
+func encryptCookie(cookie []byte) string {
+	hmacCookie := hmac.New(sha256.New, CookieKey)
+	hmacCookie.Write(cookie)
+
+	return hex.EncodeToString(hmacCookie.Sum(nil))
+}
+
+func verifyCookie(authCookie, hashCookie string) bool {
+	hashCookieBytes, _ := hex.DecodeString(hashCookie)
+
+	hm := hmac.New(sha256.New, CookieKey)
+	hm.Write([]byte(authCookie))
+
+	res := hmac.Equal(hm.Sum(nil), hashCookieBytes)
+
+	return res
+}
+
+// GenerateRandomString - функция генерации короткого URL/cookie
+func GenerateRandomString() string {
+	rand.Seed(time.Now().UnixNano())
+	var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
+	str := make([]rune, 10)
+
+	for i := range str {
+		str[i] = chars[rand.Intn(len(chars))]
+	}
+
+	return string(str)
+}
+
 func (h *Handler) InitRoutes() chi.Router {
 	compressor := &Compressor{}
 	router := chi.NewRouter()
@@ -134,10 +201,12 @@ func (h *Handler) InitRoutes() chi.Router {
 	router.Use(middleware.Recoverer)
 	router.Use(compressor.GzipMiddlewareResponse)
 	router.Use(GzipMiddlewareRequest)
+	router.Use(AuthMiddleware)
 
 	router.Post(HomeURL, h.postHandler)
 	router.Post(APIURL, h.apiHandler)
 	router.Get(DecodeURL, h.getHandler)
+	router.Get(APIALLURLS, h.apiGetAllURLS)
 
 	return router
 }

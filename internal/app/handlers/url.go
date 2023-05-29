@@ -11,14 +11,23 @@ import (
 
 // postHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/"
 func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
+	cookieHash, err := r.Cookie("hash")
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		h.log.Errorf("can't get hash from cookie, err: %s", err)
+
+		return
+	}
 	//читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("unable to read request body, err: %s", err)
 
 		return
 	}
+
 	defer func(Body io.ReadCloser) {
 		err = Body.Close()
 		if err != nil {
@@ -28,22 +37,23 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	//проверка на пустоту тела запроса
 	if len(body) == 0 {
-		http.Error(w, "empty request body", 400)
+		http.Error(w, "empty request body", http.StatusBadRequest)
 		h.log.Error("empty request body")
 
 		return
 	}
 
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
-	generatedURL := h.service.GenerateShortURL()
+	generatedURL := GenerateRandomString()
 	link := &models.Link{
 		ID:      generatedURL,
 		BaseURL: string(body),
+		Hash:    cookieHash.Value,
 	}
 
 	err = h.service.Add(link)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Error(err)
 
 		return
@@ -55,7 +65,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	//записываем ссылку в тело ответа
 	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, generatedURL)))
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		h.log.Errorf("failed to write response body, err: %s", err)
 
 		return
@@ -76,7 +86,7 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 	//получение url по индетификатору, проверка на его существование
 	url, err := h.service.Get(id)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Error(err)
 
 		return
@@ -89,10 +99,19 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 
 // apiHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/api/shorten"
 func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
+	cookieHash, err := r.Cookie("hash")
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		h.log.Errorf("can't get hash from cookie, err: %s", err)
+
+		return
+	}
+
 	//читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("unable to read request body, err: %s", err)
 
 		return
@@ -106,7 +125,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	//проверка на пустоту тела запроса
 	if len(body) == 0 {
-		http.Error(w, "empty request body", 400)
+		http.Error(w, "empty request body", http.StatusBadRequest)
 		h.log.Error("empty request body")
 
 		return
@@ -122,21 +141,22 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		т.к. значение в apiHandlerRequest.URL будет пустое
 	*/
 	if err = json.Unmarshal(body, apiHandlerRequest); err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("cant't unmarshal request body, err: %s", err)
 
 		return
 	}
 
 	//генерируем ссылку и записываем её в хранилище
-	generatedURL := h.service.GenerateShortURL()
+	generatedURL := GenerateRandomString()
 	link := &models.Link{
 		ID:      generatedURL,
 		BaseURL: apiHandlerRequest.URL,
+		Hash:    cookieHash.Value,
 	}
 	err = h.service.Add(link)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("cant't add URL, err: %s", err)
 
 		return
@@ -148,7 +168,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	//записываем результат в виде json-объекта
 	result, err := json.Marshal(apiHandlerResponse)
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("cant't marshal result, err: %s", err)
 
 		return
@@ -156,15 +176,64 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	//устанавливаем заголовок "application/json" и код ответа
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(201)
+	w.WriteHeader(http.StatusCreated)
 
 	//записываем результат в тело ответа
 	_, err = w.Write(result)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		h.log.Errorf("failed to write response body, err: %s", err)
 
 		return
 	}
 
+}
+
+func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
+	cookieHash, err := r.Cookie("hash")
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		h.log.Errorf("can't get hash from cookie, err: %s", err)
+
+		return
+	}
+
+	links, err := h.service.GetAll(cookieHash.Value)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNoContent)
+		h.log.Info(err.Error())
+
+		return
+	}
+
+	var result []*APIGETAllResponse
+
+	for _, v := range links {
+		result = append(result, &APIGETAllResponse{
+			ShortURL:    fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, v.ID),
+			OriginalURL: v.BaseURL,
+		})
+	}
+
+	jsonResult, err := json.Marshal(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.log.Errorf("cant't marshal result, err: %s", err)
+
+		return
+	}
+
+	//устанавливаем заголовок "application/json" и код ответа
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	//записываем результат в тело ответа
+	_, err = w.Write(jsonResult)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("failed to write response body, err: %s", err)
+
+		return
+	}
 }

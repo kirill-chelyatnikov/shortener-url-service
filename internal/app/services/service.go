@@ -15,6 +15,7 @@ type ServiceURL struct {
 type RepositoryInterface interface {
 	AddURL(link *models.Link) error
 	GetURLByID(id string) (string, error)
+	GetAllURLSByHash(hash string) ([]*models.Link, error)
 	Close() error
 }
 
