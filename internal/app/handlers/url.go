@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi"
+	"github.com/jackc/pgx/v5"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"io"
 	"net/http"
@@ -236,4 +238,32 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
+
+func (h *Handler) PingDB(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	conn, err := pgx.Connect(ctx, h.cfg.Db.CDN)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("unable to connect to database, err: %s", err)
+		return
+	}
+
+	defer func() {
+		err = conn.Close(ctx)
+		if err != nil {
+			h.log.Errorf("can't close database connection, err: %s", err)
+		}
+	}()
+
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte("database is working!"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("failed to write response body, err: %s", err)
+
+		return
+	}
+	h.log.Info("successful database ping")
 }

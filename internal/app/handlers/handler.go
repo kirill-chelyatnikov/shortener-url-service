@@ -207,6 +207,7 @@ func (h *Handler) InitRoutes() chi.Router {
 	router.Post(APIURL, h.apiHandler)
 	router.Get(DecodeURL, h.getHandler)
 	router.Get(APIALLURLS, h.apiGetAllURLS)
+	router.Get("/ping", h.PingDB)
 
 	return router
 }

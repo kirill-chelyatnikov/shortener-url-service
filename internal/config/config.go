@@ -18,18 +18,23 @@ type Config struct {
 		FileStorage   string `yaml:"fileStorage"`
 		SecretKey     string `yaml:"secretKey"`
 	} `yaml:"app"`
+	Db struct {
+		CDN string `yaml:"cdn"`
+	} `yaml:"db"`
 }
 
 type Environment struct {
 	ServerAddress string `env:"SERVER_ADDRESS"`
 	BaseURL       string `env:"BASE_URL"`
 	FileStorage   string `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN   string `env:"DATABASE_DSN"`
 }
 
 type Flags struct {
 	ServerAddress string
 	BaseURL       string
 	FileStorage   string
+	DatabaseDSN   string
 }
 
 // GetConfig - функция получения конфига приложения
@@ -66,6 +71,12 @@ func GetConfig(log *logrus.Logger, path string, fl *Flags) *Config {
 		cfg.App.FileStorage = fl.FileStorage
 	}
 
+	if environment.DatabaseDSN != "" {
+		cfg.Db.CDN = environment.DatabaseDSN
+	} else {
+		cfg.Db.CDN = fl.DatabaseDSN
+	}
+
 	log.Info("config received successfully")
 
 	return &cfg
@@ -77,6 +88,7 @@ func GetFlags() *Flags {
 	flag.StringVar(&fl.ServerAddress, "a", "localhost:8080", "server address")
 	flag.StringVar(&fl.BaseURL, "b", "http://localhost:8080", "base url")
 	flag.StringVar(&fl.FileStorage, "f", "", "file storage")
+	flag.StringVar(&fl.DatabaseDSN, "d", "", "DatabaseDSN")
 
 	return &fl
 }
