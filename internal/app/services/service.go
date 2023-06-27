@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 	"github.com/sirupsen/logrus"
@@ -13,9 +14,9 @@ type ServiceURL struct {
 }
 
 type RepositoryInterface interface {
-	AddURL(link *models.Link) error
-	GetURLByID(id string) (string, error)
-	GetAllURLSByHash(hash string) ([]*models.Link, error)
+	AddURL(ctx context.Context, link *models.Link) error
+	GetURLByID(ctx context.Context, id string) (string, error)
+	GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error)
 	Close() error
 }
 

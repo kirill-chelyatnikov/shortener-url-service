@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"github.com/go-chi/chi"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
@@ -19,11 +20,11 @@ import (
 
 const testConfigURL = "../../config/config.yml"
 
-//инициализация необходимых зависимостей
+// инициализация необходимых зависимостей
 var log = logger.InitLogger()
 var fl = config.GetFlags()
 var cfg = config.GetConfig(log, testConfigURL, fl)
-var repository = storage.NewStorage(log, cfg)
+var repository = storage.NewStorage(context.TODO(), log, cfg)
 var serviceURL = services.NewServiceURL(log, cfg, repository)
 var h = NewHandler(log, cfg, serviceURL)
 
@@ -58,7 +59,7 @@ func TestPostHandler(t *testing.T) {
 		},
 	}
 
-	router := chi.NewRouter()
+	router := h.InitRoutes()
 	router.Post("/", h.postHandler)
 	ts := httptest.NewServer(router)
 	defer ts.Close()
@@ -81,7 +82,7 @@ func TestPostHandler(t *testing.T) {
 			if !tt.wantErr {
 				id := strings.TrimPrefix(string(body),
 					fmt.Sprintf("http://%s/", cfg.Server.Address))
-				_, err = serviceURL.Get(id)
+				_, err = serviceURL.Get(context.TODO(), id)
 				assert.NoError(t, err)
 
 				return
@@ -128,7 +129,7 @@ func TestGetHandler(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get("/{id}", h.getHandler)
 
-	err := repository.AddURL(&models.Link{
+	err := repository.AddURL(context.TODO(), &models.Link{
 		ID:      "testUser",
 		BaseURL: "https://google.com",
 	})
@@ -203,7 +204,7 @@ func TestApiHandler(t *testing.T) {
 		},
 	}
 
-	router := chi.NewRouter()
+	router := h.InitRoutes()
 	router.Post("/api/shorten", h.apiHandler)
 	ts := httptest.NewServer(router)
 	defer ts.Close()

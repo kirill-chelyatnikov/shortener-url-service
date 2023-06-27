@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -57,9 +58,9 @@ type APIGETAllResponse struct {
 }
 
 type serviceInterface interface {
-	Add(link *models.Link) error
-	Get(id string) (string, error)
-	GetAll(hash string) ([]*models.Link, error)
+	Add(ctx context.Context, link *models.Link) error
+	Get(ctx context.Context, id string) (string, error)
+	GetAll(ctx context.Context, hash string) ([]*models.Link, error)
 }
 
 type gzipWriter struct {

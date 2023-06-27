@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
@@ -19,7 +20,7 @@ type FileStorage struct {
 }
 
 // AddURL - функция записи данных в storage (file)
-func (s *FileStorage) AddURL(link *models.Link) error {
+func (s *FileStorage) AddURL(ctx context.Context, link *models.Link) error {
 	s.mutex.Lock()
 	if err := s.encoder.Encode(link); err != nil {
 		return fmt.Errorf("can't encode data to add it to file, err: %s", err)
@@ -31,7 +32,7 @@ func (s *FileStorage) AddURL(link *models.Link) error {
 }
 
 // GetURLByID - функция получения записи из storage (file)
-func (s *FileStorage) GetURLByID(id string) (string, error) {
+func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -55,7 +56,7 @@ func (s *FileStorage) GetURLByID(id string) (string, error) {
 
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
-func (s *FileStorage) GetAllURLSByHash(hash string) ([]*models.Link, error) {
+func (s *FileStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 

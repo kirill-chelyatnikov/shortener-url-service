@@ -13,6 +13,8 @@ import (
 
 // postHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/"
 func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	cookieHash, err := r.Cookie("hash")
 
 	if err != nil {
@@ -53,7 +55,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		Hash:    cookieHash.Value,
 	}
 
-	err = h.service.Add(link)
+	err = h.service.Add(ctx, link)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Error(err)
@@ -77,6 +79,8 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 // getHandler - функция-хэндлер для обработки GET запросов, отслеживаемый путь: "/{id}"
 func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	//получаем интидификатор ссылки из GET-параметра
 	id := chi.URLParam(r, "id")
 
@@ -86,7 +90,7 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 	*/
 
 	//получение url по индетификатору, проверка на его существование
-	url, err := h.service.Get(id)
+	url, err := h.service.Get(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Error(err)
@@ -101,6 +105,8 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 
 // apiHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/api/shorten"
 func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	cookieHash, err := r.Cookie("hash")
 
 	if err != nil {
@@ -156,7 +162,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		BaseURL: apiHandlerRequest.URL,
 		Hash:    cookieHash.Value,
 	}
-	err = h.service.Add(link)
+	err = h.service.Add(ctx, link)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("cant't add URL, err: %s", err)
@@ -192,6 +198,8 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	cookieHash, err := r.Cookie("hash")
 
 	if err != nil {
@@ -201,7 +209,7 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	links, err := h.service.GetAll(cookieHash.Value)
+	links, err := h.service.GetAll(ctx, cookieHash.Value)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNoContent)
 		h.log.Info(err.Error())

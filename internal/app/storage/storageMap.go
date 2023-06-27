@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
@@ -15,7 +16,7 @@ type MapStorage struct {
 }
 
 // AddURL - функция записи данных в storage (map)
-func (s *MapStorage) AddURL(link *models.Link) error {
+func (s *MapStorage) AddURL(ctx context.Context, link *models.Link) error {
 	s.mutex.Lock()
 
 	s.data[link.ID] = models.Link{
@@ -30,7 +31,7 @@ func (s *MapStorage) AddURL(link *models.Link) error {
 }
 
 // GetURLByID - функция получения записи из storage (map)
-func (s *MapStorage) GetURLByID(id string) (string, error) {
+func (s *MapStorage) GetURLByID(ctx context.Context, id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -41,7 +42,7 @@ func (s *MapStorage) GetURLByID(id string) (string, error) {
 	return s.data[id].BaseURL, nil
 }
 
-func (s *MapStorage) GetAllURLSByHash(hash string) ([]*models.Link, error) {
+func (s *MapStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
