@@ -60,6 +60,10 @@ func (s *MapStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*mode
 	return links, nil
 }
 
+func (s *MapStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
+	return nil
+}
+
 // Close - функция-заглушка для удовлетворения интерфейсу RepositoryInterface
 func (s *MapStorage) Close() error {
 	return nil

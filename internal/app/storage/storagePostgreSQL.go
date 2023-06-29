@@ -82,6 +82,35 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 	return links, nil
 }
 
+func (p *PostgreSQLStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("can't begin tx, err: %s", err)
+	}
+
+	defer tx.Rollback(ctx)
+
+	q := `
+		INSERT INTO links
+		   (id, baseurl, hash)
+		VALUES
+			($1, $2, $3)
+	`
+
+	for _, v := range links {
+		_, err = tx.Exec(ctx, q, v.ID, v.BaseURL, v.Hash)
+		if err != nil {
+			return fmt.Errorf("can't exec tx, err: %s", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("can't commit tx, err: %s", err)
+	}
+
+	return nil
+}
+
 func (p *PostgreSQLStorage) Close() error {
 	p.pool.Close()
 	return nil
@@ -105,7 +134,7 @@ func NewPostgreSQLStorage(ctx context.Context, log *logrus.Logger, cfg *config.C
 	q := `
 	CREATE TABLE IF NOT EXISTS links (
 		id varchar(10) PRIMARY KEY NOT NULL UNIQUE,
-		baseURL text NOT NULL ,
+		baseURL text NOT NULL,
 		hash varchar(64) NOT NULL
 	)
 	`

@@ -12,8 +12,19 @@ func (s *ServiceURL) Add(ctx context.Context, link *models.Link) error {
 		return errors.New("empty url received")
 	}
 
-	err := s.repository.AddURL(ctx, link)
-	if err != nil {
+	if err := s.repository.AddURL(ctx, link); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *ServiceURL) AddBatch(ctx context.Context, links []*models.Link) error {
+	if len(links) == 0 {
+		return errors.New("passed an empty array of references")
+	}
+
+	if err := s.repository.AddURLSBatch(ctx, links); err != nil {
 		return err
 	}
 

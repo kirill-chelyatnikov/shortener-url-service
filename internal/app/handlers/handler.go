@@ -25,6 +25,8 @@ const (
 	DecodeURL  = "/{id}"
 	APIURL     = "/api/shorten"
 	APIALLURLS = "/api/user/urls"
+	PING       = "/ping"
+	APIBATCH   = "/api/shorten/batch"
 )
 
 var CookieKey = []byte("cookie_key_7385746739")
@@ -57,8 +59,19 @@ type APIGETAllResponse struct {
 	OriginalURL string `json:"original_url"`
 }
 
+type APIBatchRequest struct {
+	CorrelationId string `json:"correlation_id"`
+	OriginalUrl   string `json:"original_url"`
+}
+
+type APIBatchResponse struct {
+	CorrelationId string `json:"correlation_id"`
+	ShortUrl      string `json:"short_url"`
+}
+
 type serviceInterface interface {
 	Add(ctx context.Context, link *models.Link) error
+	AddBatch(ctx context.Context, links []*models.Link) error
 	Get(ctx context.Context, id string) (string, error)
 	GetAll(ctx context.Context, hash string) ([]*models.Link, error)
 }
@@ -206,9 +219,10 @@ func (h *Handler) InitRoutes() chi.Router {
 
 	router.Post(HomeURL, h.postHandler)
 	router.Post(APIURL, h.apiHandler)
+	router.Post(APIBATCH, h.apiBatch)
 	router.Get(DecodeURL, h.getHandler)
 	router.Get(APIALLURLS, h.apiGetAllURLS)
-	router.Get("/ping", h.PingDB)
+	router.Get(PING, h.pingDB)
 
 	return router
 }

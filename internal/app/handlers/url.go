@@ -248,7 +248,7 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) PingDB(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) pingDB(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	conn, err := pgx.Connect(ctx, h.cfg.Db.CDN)
@@ -274,4 +274,98 @@ func (h *Handler) PingDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.log.Info("successful database ping")
+}
+
+func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
+	cookieHash, err := r.Cookie("hash")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		h.log.Errorf("can't get hash from cookie, err: %s", err)
+
+		return
+	}
+
+	//читаем тело запроса
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.log.Errorf("unable to read request body, err: %s", err)
+
+		return
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			h.log.Errorf("can't close body request, err: %s", err)
+		}
+	}(r.Body)
+
+	//проверка на пустоту тела запроса
+	if len(body) == 0 {
+		http.Error(w, "empty request body", http.StatusBadRequest)
+		h.log.Error("empty request body")
+
+		return
+	}
+
+	requestLinks := make([]APIBatchRequest, 0)
+	err = json.Unmarshal(body, &requestLinks)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("cant't unmarshal request, err: %s", err)
+
+		return
+	}
+
+	links := make([]*models.Link, 0)
+	for _, v := range requestLinks {
+		if len(v.CorrelationId) > 0 && len(v.OriginalUrl) > 0 {
+			link := &models.Link{
+				ID:            GenerateRandomString(),
+				BaseURL:       v.OriginalUrl,
+				CorrelationId: v.CorrelationId,
+				Hash:          cookieHash.Value,
+			}
+
+			links = append(links, link)
+		}
+	}
+
+	err = h.service.AddBatch(ctx, links)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("can't add links batch, err: %s", err)
+
+		return
+	}
+
+	result := make([]APIBatchResponse, 0)
+	for _, v := range links {
+		result = append(result, APIBatchResponse{
+			CorrelationId: v.CorrelationId,
+			ShortUrl:      fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, v.ID),
+		})
+	}
+
+	jsonResult, err := json.Marshal(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("cant't marshal response, err: %s", err)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(jsonResult)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("failed to write response body, err: %s", err)
+
+		return
+	}
 }

@@ -57,14 +57,11 @@ func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error)
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
 func (s *FileStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
-	s.mutex.RLock()
-	defer s.mutex.RUnlock()
-
-	//links := make([]models.Link, 0)
-	//
-	//for s
-
 	return nil, nil
+}
+
+func (s *FileStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
+	return nil
 }
 
 func (s *FileStorage) Close() error {

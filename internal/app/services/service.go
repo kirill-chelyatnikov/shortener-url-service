@@ -15,6 +15,7 @@ type ServiceURL struct {
 
 type RepositoryInterface interface {
 	AddURL(ctx context.Context, link *models.Link) error
+	AddURLSBatch(ctx context.Context, links []*models.Link) error
 	GetURLByID(ctx context.Context, id string) (string, error)
 	GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error)
 	Close() error
