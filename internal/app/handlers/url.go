@@ -48,11 +48,11 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
-	generatedURL := GenerateRandomString()
 	link := &models.Link{
-		ID:      generatedURL,
+		ID:      GenerateRandomString(),
 		BaseURL: string(body),
-		Hash:    cookieHash.Value,
+
+		Hash: cookieHash.Value,
 	}
 
 	err = h.service.Add(ctx, link)
@@ -67,7 +67,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 
 	//записываем ссылку в тело ответа
-	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, generatedURL)))
+	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, link.ID)))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		h.log.Errorf("failed to write response body, err: %s", err)

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
@@ -16,19 +17,35 @@ type PostgreSQLStorage struct {
 }
 
 func (p *PostgreSQLStorage) AddURL(ctx context.Context, link *models.Link) error {
-
-	q := `
-	INSERT INTO links 
-	    (id, baseurl, hash)
-	VALUES 
-		($1, $2, $3)
-	`
-	_, err := p.pool.Exec(ctx, q, link.ID, link.BaseURL, link.Hash)
+	check, err := p.CheckBaseURLExist(ctx, link)
 	if err != nil {
-		return fmt.Errorf("can't do query, err: %s", err)
+		return err
 	}
 
-	p.log.Infof("success write data in database. ID - %s, URL - %s", link.ID, link.BaseURL)
+	if check {
+		qUpdateHash := `
+		UPDATE links ls SET 
+		hash = array_append(ls.hash, $1)
+		WHERE
+		     ls.baseurl = $2
+		AND NOT
+    	$1 = ANY (ls.hash)
+		`
+		_, err = p.pool.Exec(ctx, qUpdateHash, link.Hash, link.BaseURL)
+		if err != nil {
+			return fmt.Errorf("can't do query, err: %s", err)
+		}
+	} else {
+		qInsertLink := `
+		INSERT INTO links as ls (id, baseurl, hash)
+		VALUES
+		($1, $2, ARRAY[$3])
+		`
+		_, err = p.pool.Exec(ctx, qInsertLink, link.ID, link.BaseURL, link.Hash)
+		if err != nil {
+			return fmt.Errorf("can't do query, err: %s", err)
+		}
+	}
 
 	return nil
 }
@@ -116,6 +133,27 @@ func (p *PostgreSQLStorage) Close() error {
 	return nil
 }
 
+func (p *PostgreSQLStorage) CheckBaseURLExist(ctx context.Context, link *models.Link) (bool, error) {
+	q := `
+	SELECT id FROM links 
+	WHERE baseurl = $1
+	`
+	var id string
+
+	row := p.pool.QueryRow(ctx, q, link.BaseURL)
+
+	switch err := row.Scan(&id); err {
+	case pgx.ErrNoRows:
+		return false, nil
+	case nil:
+		link.Chechj = true
+		link.ID = id
+		return true, nil
+	default:
+		return false, err
+	}
+}
+
 func dbConnect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, cfg.Db.CDN)
 	if err != nil {
@@ -134,8 +172,8 @@ func NewPostgreSQLStorage(ctx context.Context, log *logrus.Logger, cfg *config.C
 	q := `
 	CREATE TABLE IF NOT EXISTS links (
 		id varchar(10) PRIMARY KEY NOT NULL UNIQUE,
-		baseURL text NOT NULL,
-		hash varchar(64) NOT NULL
+		baseURL text NOT NULL UNIQUE,
+		hash varchar(64)[] NOT NULL
 	)
 	`
 
