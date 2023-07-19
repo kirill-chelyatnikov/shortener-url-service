@@ -42,6 +42,7 @@ func (s *MapStorage) GetURLByID(ctx context.Context, id string) (string, error) 
 	return s.data[id].BaseURL, nil
 }
 
+// GetAllURLSByHash - функция получения всех записей по хешу из storage (map)
 func (s *MapStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
@@ -60,11 +61,20 @@ func (s *MapStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*mode
 	return links, nil
 }
 
+// функции-заглушки для удовлетворения интерфейсу репозитория, часть фунций нужна только для работы с БД
+
 func (s *MapStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
 	return nil
 }
 
-// Close - функция-заглушка для удовлетворения интерфейсу RepositoryInterface
+func (s *MapStorage) CheckBaseURLExist(ctx context.Context, link *models.Link) (bool, error) {
+	return false, nil
+}
+
+func (s *MapStorage) UpdateHash(ctx context.Context, link *models.Link) error {
+	return nil
+}
+
 func (s *MapStorage) Close() error {
 	return nil
 }

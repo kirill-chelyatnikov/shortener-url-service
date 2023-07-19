@@ -11,13 +11,12 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
+	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
 	"io"
-	"math/rand"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
@@ -70,7 +69,7 @@ type APIBatchResponse struct {
 }
 
 type serviceInterface interface {
-	Add(ctx context.Context, link *models.Link) error
+	Add(ctx context.Context, link *models.Link) (bool, error)
 	AddBatch(ctx context.Context, links []*models.Link) error
 	Get(ctx context.Context, id string) (string, error)
 	GetAll(ctx context.Context, hash string) ([]*models.Link, error)
@@ -166,7 +165,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 }
 
 func setAuthCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
-	cookie := GenerateRandomString()
+	cookie := pkg.GenerateRandomString()
 	authCookie := &http.Cookie{Name: "auth", Value: cookie, Path: "/"}
 	hashCookie := &http.Cookie{Name: "hash", Value: encryptCookie([]byte(cookie)), Path: "/"}
 	http.SetCookie(w, authCookie)
@@ -191,19 +190,6 @@ func verifyCookie(authCookie, hashCookie string) bool {
 	res := hmac.Equal(hm.Sum(nil), hashCookieBytes)
 
 	return res
-}
-
-// GenerateRandomString - функция генерации короткого URL/cookie
-func GenerateRandomString() string {
-	rand.Seed(time.Now().UnixNano())
-	var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
-	str := make([]rune, 10)
-
-	for i := range str {
-		str[i] = chars[rand.Intn(len(chars))]
-	}
-
-	return string(str)
 }
 
 func (h *Handler) InitRoutes() chi.Router {

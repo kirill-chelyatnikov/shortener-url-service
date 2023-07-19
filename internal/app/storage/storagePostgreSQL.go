@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
@@ -16,40 +15,22 @@ type PostgreSQLStorage struct {
 	pool *pgxpool.Pool
 }
 
+// AddURL - функция записи данных в storage (PostgreSQL)
 func (p *PostgreSQLStorage) AddURL(ctx context.Context, link *models.Link) error {
-	check, err := p.CheckBaseURLExist(ctx, link)
-	if err != nil {
-		return err
-	}
-
-	if check {
-		qUpdateHash := `
-		UPDATE links ls SET 
-		hash = array_append(ls.hash, $1)
-		WHERE
-		     ls.baseurl = $2
-		AND NOT
-    	$1 = ANY (ls.hash)
-		`
-		_, err = p.pool.Exec(ctx, qUpdateHash, link.Hash, link.BaseURL)
-		if err != nil {
-			return fmt.Errorf("can't do query, err: %s", err)
-		}
-	} else {
-		qInsertLink := `
+	qInsertLink := `
 		INSERT INTO links as ls (id, baseurl, hash)
 		VALUES
 		($1, $2, ARRAY[$3])
 		`
-		_, err = p.pool.Exec(ctx, qInsertLink, link.ID, link.BaseURL, link.Hash)
-		if err != nil {
-			return fmt.Errorf("can't do query, err: %s", err)
-		}
+	_, err := p.pool.Exec(ctx, qInsertLink, link.ID, link.BaseURL, link.Hash)
+	if err != nil {
+		return NewDBError("AddURL", "can't do query", err)
 	}
 
 	return nil
 }
 
+// GetURLByID - функция получения записи из storage (PostgreSQL)
 func (p *PostgreSQLStorage) GetURLByID(ctx context.Context, id string) (string, error) {
 	var res string
 	q := `
@@ -64,12 +45,13 @@ func (p *PostgreSQLStorage) GetURLByID(ctx context.Context, id string) (string, 
 
 	err := row.Scan(&res)
 	if err != nil {
-		return "", fmt.Errorf("can't scan, err: %s", err)
+		return "", NewDBError("GetURLByID", "can't scan", err)
 	}
 
 	return res, nil
 }
 
+// GetAllURLSByHash - функция получения всех записей по хешу из storage (PostgreSQL)
 func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
 	var links []*models.Link
 	q := `
@@ -82,7 +64,7 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 
 	rows, err := p.pool.Query(ctx, q, hash)
 	if err != nil {
-		return nil, fmt.Errorf("can't do query, err: %s", err)
+		return nil, NewDBError("GetAllURLSByHash", "can't do query", err)
 	}
 
 	defer rows.Close()
@@ -91,7 +73,7 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 		var link models.Link
 		err = rows.Scan(&link.ID, &link.BaseURL)
 		if err != nil {
-			return nil, fmt.Errorf("can't scan, err: %s", err)
+			return nil, NewDBError("GetAllURLSByHash", "can't scan", err)
 		}
 		links = append(links, &link)
 	}
@@ -99,12 +81,16 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 	return links, nil
 }
 
+// AddURLSBatch - функция добавления записей "пачкой"
 func (p *PostgreSQLStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
+
+	// Начало транзакции
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("can't begin tx, err: %s", err)
+		return NewDBError("AddURLSBatch", "can't begin tx", err)
 	}
 
+	// Обязательный откат транзакции при возникновении ошибок
 	defer tx.Rollback(ctx)
 
 	q := `
@@ -117,12 +103,12 @@ func (p *PostgreSQLStorage) AddURLSBatch(ctx context.Context, links []*models.Li
 	for _, v := range links {
 		_, err = tx.Exec(ctx, q, v.ID, v.BaseURL, v.Hash)
 		if err != nil {
-			return fmt.Errorf("can't exec tx, err: %s", err)
+			return NewDBError("AddURLSBatch", "can't exec tx", err)
 		}
 	}
 
 	if err = tx.Commit(ctx); err != nil {
-		return fmt.Errorf("can't commit tx, err: %s", err)
+		return NewDBError("AddURLSBatch", "can't commit tx", err)
 	}
 
 	return nil
@@ -133,6 +119,7 @@ func (p *PostgreSQLStorage) Close() error {
 	return nil
 }
 
+// CheckBaseURLExist - функция для проверки нахождения URL в БД
 func (p *PostgreSQLStorage) CheckBaseURLExist(ctx context.Context, link *models.Link) (bool, error) {
 	q := `
 	SELECT id FROM links 
@@ -143,21 +130,41 @@ func (p *PostgreSQLStorage) CheckBaseURLExist(ctx context.Context, link *models.
 	row := p.pool.QueryRow(ctx, q, link.BaseURL)
 
 	switch err := row.Scan(&id); err {
+	// Если ошибка ErrNoRows, значит запись отсутствует, не отдаем ошибку и возвращаем false
 	case pgx.ErrNoRows:
 		return false, nil
+	//если ошибки нет, то запись уже присуствует в БД, возвращаем true присваиваем объекту ID из БД
 	case nil:
-		link.Chechj = true
 		link.ID = id
 		return true, nil
 	default:
-		return false, err
+		return false, NewDBError("CheckBaseURLExist", "can't scan", err)
 	}
 }
 
+// UpdateHash - функция для добавления хеша пользователя в уже существующую запись
+func (p *PostgreSQLStorage) UpdateHash(ctx context.Context, link *models.Link) error {
+	qUpdateHash := `
+		UPDATE links ls SET 
+		hash = array_append(ls.hash, $1)
+		WHERE
+		     ls.baseurl = $2
+		AND NOT
+    	$1 = ANY (ls.hash)
+		`
+	_, err := p.pool.Exec(ctx, qUpdateHash, link.Hash, link.BaseURL)
+	if err != nil {
+		return NewDBError("UpdateHash", "can't do query", err)
+	}
+
+	return nil
+}
+
+// dbConnect - фукция подключения к БД
 func dbConnect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, cfg.Db.CDN)
 	if err != nil {
-		return nil, err
+		return nil, NewDBError("dbConnect", "DB connect failed", err)
 	}
 
 	return pool, nil
@@ -169,6 +176,7 @@ func NewPostgreSQLStorage(ctx context.Context, log *logrus.Logger, cfg *config.C
 		log.Fatalf("can't create PostgreSQLStorage, err: %s", err)
 	}
 
+	//Костыль на случай отсутствия таблицы в БД
 	q := `
 	CREATE TABLE IF NOT EXISTS links (
 		id varchar(10) PRIMARY KEY NOT NULL UNIQUE,

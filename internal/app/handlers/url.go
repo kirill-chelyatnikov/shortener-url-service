@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/jackc/pgx/v5"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
+	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 	"io"
 	"net/http"
 )
@@ -49,13 +50,12 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
 	link := &models.Link{
-		ID:      GenerateRandomString(),
 		BaseURL: string(body),
-
-		Hash: cookieHash.Value,
+		Hash:    cookieHash.Value,
 	}
 
-	err = h.service.Add(ctx, link)
+	var updated bool
+	updated, err = h.service.Add(ctx, link)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Error(err)
@@ -63,8 +63,15 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//устанавливаем статус-код 201
-	w.WriteHeader(http.StatusCreated)
+	if updated {
+		//устанавливаем статус-код 409
+		w.WriteHeader(http.StatusConflict)
+		h.log.Info("URL updated successfully, set 409 response code ")
+	} else {
+		//устанавливаем статус-код 201
+		w.WriteHeader(http.StatusCreated)
+		h.log.Info("URL added successfully, set 201 response code")
+	}
 
 	//записываем ссылку в тело ответа
 	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, link.ID)))
@@ -74,7 +81,6 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-	h.log.Info("URL generated successfully, written to response body")
 }
 
 // getHandler - функция-хэндлер для обработки GET запросов, отслеживаемый путь: "/{id}"
@@ -156,13 +162,13 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//генерируем ссылку и записываем её в хранилище
-	generatedURL := GenerateRandomString()
+	generatedURL := pkg.GenerateRandomString()
 	link := &models.Link{
 		ID:      generatedURL,
 		BaseURL: apiHandlerRequest.URL,
 		Hash:    cookieHash.Value,
 	}
-	err = h.service.Add(ctx, link)
+	_, err = h.service.Add(ctx, link)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("cant't add URL, err: %s", err)
@@ -324,7 +330,7 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 	for _, v := range requestLinks {
 		if len(v.CorrelationId) > 0 && len(v.OriginalUrl) > 0 {
 			link := &models.Link{
-				ID:            GenerateRandomString(),
+				ID:            pkg.GenerateRandomString(),
 				BaseURL:       v.OriginalUrl,
 				CorrelationId: v.CorrelationId,
 				Hash:          cookieHash.Value,

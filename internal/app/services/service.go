@@ -18,6 +18,8 @@ type RepositoryInterface interface {
 	AddURLSBatch(ctx context.Context, links []*models.Link) error
 	GetURLByID(ctx context.Context, id string) (string, error)
 	GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error)
+	CheckBaseURLExist(ctx context.Context, link *models.Link) (bool, error)
+	UpdateHash(ctx context.Context, link *models.Link) error
 	Close() error
 }
 

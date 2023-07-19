@@ -56,11 +56,22 @@ func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error)
 
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
+
+// функции-заглушки для удовлетворения интерфейсу репозитория, часть фунций нужна только для работы с БД
+
 func (s *FileStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
 	return nil, nil
 }
 
 func (s *FileStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
+	return nil
+}
+
+func (s *FileStorage) CheckBaseURLExist(ctx context.Context, link *models.Link) (bool, error) {
+	return false, nil
+}
+
+func (s *FileStorage) UpdateHash(ctx context.Context, link *models.Link) error {
 	return nil
 }
 

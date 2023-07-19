@@ -4,21 +4,44 @@ import (
 	"context"
 	"errors"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
+	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 )
 
-// Add - функция сервиса для добавления записи
-func (s *ServiceURL) Add(ctx context.Context, link *models.Link) error {
-	if len(link.ID) == 0 || len(link.BaseURL) == 0 || len(link.Hash) == 0 {
-		return errors.New("empty url received")
+// Add - функция сервиса для добавления/изменения записи
+func (s *ServiceURL) Add(ctx context.Context, link *models.Link) (bool, error) {
+	// Проверка на пустоту переданных полей
+	if len(link.BaseURL) == 0 || len(link.Hash) == 0 {
+		return false, errors.New("empty url received")
 	}
 
-	if err := s.repository.AddURL(ctx, link); err != nil {
-		return err
+	// Проверяем наличие URL в БД
+	check, err := s.repository.CheckBaseURLExist(ctx, link)
+	if err != nil {
+		return false, err
 	}
 
-	return nil
+	/* Если URL в базе уже существует, то добавляем хеш пользователя в массив хэшей данной записи,
+	также передаем информацию в хендлер о том, что запись мы проапдейтили, а не вставили новую, нужно для понимания
+	какой код ответа следует отдать */
+	if check {
+		if err = s.repository.UpdateHash(ctx, link); err != nil {
+			return false, err
+		}
+
+		return true, nil
+		//Если URL не найден, то просто пишем его в БД.
+	} else {
+		//Присваиваем записи ID (в случае апдейта записи, ID мы берем из БД)
+		link.ID = pkg.GenerateRandomString()
+		if err = s.repository.AddURL(ctx, link); err != nil {
+			return false, err
+		}
+
+		return false, nil
+	}
 }
 
+// AddBatch - функция сервиса для добавления записей "пачкой"
 func (s *ServiceURL) AddBatch(ctx context.Context, links []*models.Link) error {
 	if len(links) == 0 {
 		return errors.New("passed an empty array of references")
@@ -36,6 +59,7 @@ func (s *ServiceURL) Get(ctx context.Context, id string) (string, error) {
 	return s.repository.GetURLByID(ctx, id)
 }
 
+// GetAll - функция сервиса для получения всех записей по хешу
 func (s *ServiceURL) GetAll(ctx context.Context, hash string) ([]*models.Link, error) {
 	return s.repository.GetAllURLSByHash(ctx, hash)
 }
