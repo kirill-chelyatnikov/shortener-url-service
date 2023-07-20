@@ -63,15 +63,13 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	responseStatusCode := http.StatusCreated
+
+	//меняем статус код в зафисимости от того добавили мы запись или проапдейтили
 	if updated {
-		//устанавливаем статус-код 409
-		w.WriteHeader(http.StatusConflict)
-		h.log.Info("URL updated successfully, set 409 response code ")
-	} else {
-		//устанавливаем статус-код 201
-		w.WriteHeader(http.StatusCreated)
-		h.log.Info("URL added successfully, set 201 response code")
+		responseStatusCode = http.StatusConflict
 	}
+	w.WriteHeader(responseStatusCode)
 
 	//записываем ссылку в тело ответа
 	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, link.ID)))
@@ -81,6 +79,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+	h.log.Infof("URL updated successfully, set %d response code", responseStatusCode)
 }
 
 // getHandler - функция-хэндлер для обработки GET запросов, отслеживаемый путь: "/{id}"
@@ -166,7 +165,9 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		BaseURL: apiHandlerRequest.URL,
 		Hash:    cookieHash.Value,
 	}
-	_, err = h.service.Add(ctx, link)
+
+	var updated bool
+	updated, err = h.service.Add(ctx, link)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Errorf("cant't add URL, err: %s", err)
@@ -188,7 +189,14 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 	//устанавливаем заголовок "application/json" и код ответа
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusCreated)
+
+	responseStatusCode := http.StatusCreated
+
+	//меняем статус код в зафисимости от того добавили мы запись или проапдейтили
+	if updated {
+		responseStatusCode = http.StatusConflict
+	}
+	w.WriteHeader(responseStatusCode)
 
 	//записываем результат в тело ответа
 	_, err = w.Write(result)
@@ -255,7 +263,7 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) pingDB(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
-	conn, err := pgx.Connect(ctx, h.cfg.Db.CDN)
+	conn, err := pgx.Connect(ctx, h.cfg.DB.CDN)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		h.log.Errorf("unable to connect to database, err: %s", err)
@@ -326,11 +334,11 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 
 	links := make([]*models.Link, 0)
 	for _, v := range requestLinks {
-		if len(v.CorrelationId) > 0 && len(v.OriginalUrl) > 0 {
+		if len(v.CorrelationID) > 0 && len(v.OriginalURL) > 0 {
 			link := &models.Link{
 				ID:            pkg.GenerateRandomString(),
-				BaseURL:       v.OriginalUrl,
-				CorrelationId: v.CorrelationId,
+				BaseURL:       v.OriginalURL,
+				CorrelationID: v.CorrelationID,
 				Hash:          cookieHash.Value,
 			}
 
@@ -349,8 +357,8 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 	result := make([]APIBatchResponse, 0)
 	for _, v := range links {
 		result = append(result, APIBatchResponse{
-			CorrelationId: v.CorrelationId,
-			ShortUrl:      fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, v.ID),
+			CorrelationID: v.CorrelationID,
+			ShortURL:      fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, v.ID),
 		})
 	}
 

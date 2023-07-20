@@ -18,7 +18,7 @@ type Config struct {
 		FileStorage   string `yaml:"fileStorage"`
 		SecretKey     string `yaml:"secretKey"`
 	} `yaml:"app"`
-	Db struct {
+	DB struct {
 		CDN string `yaml:"cdn"`
 	} `yaml:"db"`
 }
@@ -72,9 +72,9 @@ func GetConfig(log *logrus.Logger, path string, fl *Flags) *Config {
 	}
 
 	if environment.DatabaseDSN != "" {
-		cfg.Db.CDN = environment.DatabaseDSN
+		cfg.DB.CDN = environment.DatabaseDSN
 	} else {
-		cfg.Db.CDN = fl.DatabaseDSN
+		cfg.DB.CDN = fl.DatabaseDSN
 	}
 
 	log.Info("config received successfully")

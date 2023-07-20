@@ -163,7 +163,7 @@ func (p *PostgreSQLStorage) UpdateHash(ctx context.Context, link *models.Link) e
 
 // dbConnect - фукция подключения к БД
 func dbConnect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, cfg.Db.CDN)
+	pool, err := pgxpool.New(ctx, cfg.DB.CDN)
 	if err != nil {
 		return nil, NewDBError("dbConnect", "DB connect failed", err)
 	}

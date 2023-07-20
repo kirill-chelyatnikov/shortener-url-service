@@ -9,7 +9,7 @@ import (
 
 // NewStorage - функция получения хранилища в зафисимости от выбранного способа хранить ссылки (Map / File / DB)
 func NewStorage(ctx context.Context, log *logrus.Logger, cfg *config.Config) services.RepositoryInterface {
-	if cfg.Db.CDN != "" {
+	if cfg.DB.CDN != "" {
 		return NewPostgreSQLStorage(ctx, log, cfg)
 	}
 
