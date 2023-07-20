@@ -162,9 +162,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//генерируем ссылку и записываем её в хранилище
-	generatedURL := pkg.GenerateRandomString()
 	link := &models.Link{
-		ID:      generatedURL,
 		BaseURL: apiHandlerRequest.URL,
 		Hash:    cookieHash.Value,
 	}
@@ -177,7 +175,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//записываем результат в структуру ответа
-	apiHandlerResponse.Result = fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, generatedURL)
+	apiHandlerResponse.Result = fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, link.ID)
 
 	//записываем результат в виде json-объекта
 	result, err := json.Marshal(apiHandlerResponse)
@@ -365,7 +363,7 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusCreated)
 
 	_, err = w.Write(jsonResult)
 	if err != nil {

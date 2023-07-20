@@ -57,7 +57,7 @@ func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error)
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
 
-// функции-заглушки для удовлетворения интерфейсу репозитория, часть фунций нужна только для работы с БД
+// функции-заглушки для удовлетворения интерфейсу репозитория
 
 func (s *FileStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*models.Link, error) {
 	return nil, nil

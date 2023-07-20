@@ -18,10 +18,11 @@ type PostgreSQLStorage struct {
 // AddURL - функция записи данных в storage (PostgreSQL)
 func (p *PostgreSQLStorage) AddURL(ctx context.Context, link *models.Link) error {
 	qInsertLink := `
-		INSERT INTO links as ls (id, baseurl, hash)
-		VALUES
+	INSERT INTO links as ls 
+	    (id, baseurl, hash)
+	VALUES
 		($1, $2, ARRAY[$3])
-		`
+	`
 	_, err := p.pool.Exec(ctx, qInsertLink, link.ID, link.BaseURL, link.Hash)
 	if err != nil {
 		return NewDBError("AddURL", "can't do query", err)
@@ -94,10 +95,10 @@ func (p *PostgreSQLStorage) AddURLSBatch(ctx context.Context, links []*models.Li
 	defer tx.Rollback(ctx)
 
 	q := `
-		INSERT INTO links
-		   (id, baseurl, hash)
-		VALUES
-			($1, $2, $3)
+	INSERT INTO links as ls 
+	    (id, baseurl, hash)
+	VALUES
+		($1, $2, ARRAY[$3])
 	`
 
 	for _, v := range links {

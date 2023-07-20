@@ -27,11 +27,10 @@ func (s *ServiceURL) Add(ctx context.Context, link *models.Link) (bool, error) {
 		if err = s.repository.UpdateHash(ctx, link); err != nil {
 			return false, err
 		}
-
 		return true, nil
-		//Если URL не найден, то просто пишем его в БД.
 	} else {
-		//Присваиваем записи ID (в случае апдейта записи, ID мы берем из БД)
+		/* Если URL не найден, то просто пишем его в БД.
+		Присваиваем записи ID (в случае апдейта записи, ID мы берем из БД) */
 		link.ID = pkg.GenerateRandomString()
 		if err = s.repository.AddURL(ctx, link); err != nil {
 			return false, err
