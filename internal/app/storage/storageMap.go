@@ -4,22 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"sync"
+
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 )
 
 type MapStorage struct {
-	log   *logrus.Logger
+	log   *zap.SugaredLogger
 	mutex sync.RWMutex
-	data  map[string]models.Link
+	data  map[string]*models.Link
 }
 
 // AddURL - функция записи данных в storage (map)
 func (s *MapStorage) AddURL(ctx context.Context, link *models.Link) error {
 	s.mutex.Lock()
 
-	s.data[link.ID] = models.Link{
+	s.data[link.ID] = &models.Link{
 		ID:      link.ID,
 		BaseURL: link.BaseURL,
 		Hash:    link.Hash,
@@ -34,14 +35,12 @@ func (s *MapStorage) AddURL(ctx context.Context, link *models.Link) error {
 func (s *MapStorage) GetURLByID(ctx context.Context, id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
-	s.log.Info(s.data)
-	for _, v := range s.data {
-		if v.ID == id {
-			return v.BaseURL, nil
-		}
+
+	if _, ok := s.data[id]; !ok {
+		return "", fmt.Errorf("can't find URL by id: %s", id)
 	}
 
-	return "", fmt.Errorf("can't find URL by id: %s", id)
+	return s.data[id].BaseURL, nil
 }
 
 // GetAllURLSByHash - функция получения всех записей по хешу из storage (map)
@@ -52,7 +51,7 @@ func (s *MapStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*mode
 	var links []*models.Link
 	for _, v := range s.data {
 		if v.Hash == hash {
-			links = append(links, &v)
+			links = append(links, v)
 		}
 	}
 
@@ -81,9 +80,9 @@ func (s *MapStorage) Close() error {
 	return nil
 }
 
-func NewMapStorage(log *logrus.Logger) *MapStorage {
+func NewMapStorage(log *zap.SugaredLogger) *MapStorage {
 	return &MapStorage{
 		log:  log,
-		data: make(map[string]models.Link),
+		data: make(map[string]*models.Link),
 	}
 }

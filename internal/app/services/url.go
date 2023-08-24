@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 )
@@ -28,16 +29,15 @@ func (s *ServiceURL) Add(ctx context.Context, link *models.Link) (bool, error) {
 			return false, err
 		}
 		return true, nil
-	} else {
-		/* Если URL не найден, то просто пишем его в БД.
-		Присваиваем записи ID (в случае апдейта записи, ID мы берем из БД) */
-		link.ID = pkg.GenerateRandomString()
-		if err = s.repository.AddURL(ctx, link); err != nil {
-			return false, err
-		}
-
-		return false, nil
 	}
+	/* Если URL не найден, то просто пишем его в БД.
+	Присваиваем записи ID (в случае апдейта записи, ID мы берем из БД) */
+	link.ID = pkg.GenerateRandomString()
+	if err = s.repository.AddURL(ctx, link); err != nil {
+		return false, err
+	}
+
+	return false, nil
 }
 
 // AddBatch - функция сервиса для добавления записей "пачкой"
@@ -46,11 +46,7 @@ func (s *ServiceURL) AddBatch(ctx context.Context, links []*models.Link) error {
 		return errors.New("passed an empty array of references")
 	}
 
-	if err := s.repository.AddURLSBatch(ctx, links); err != nil {
-		return err
-	}
-
-	return nil
+	return s.repository.AddURLSBatch(ctx, links)
 }
 
 // Get - функция сервиса для получение записи по ID

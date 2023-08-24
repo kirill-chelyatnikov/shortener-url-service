@@ -8,7 +8,7 @@ import (
 // GenerateRandomString - функция генерации короткого URL/cookie
 func GenerateRandomString() string {
 	rand.Seed(time.Now().UnixNano())
-	var chars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
+	chars := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0987654321")
 	str := make([]rune, 10)
 
 	for i := range str {

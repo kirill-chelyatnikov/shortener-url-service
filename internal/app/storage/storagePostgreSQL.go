@@ -2,15 +2,17 @@ package storage
 
 import (
 	"context"
+	"go.uber.org/zap"
+
 	"github.com/jackc/pgx/v5"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
-	"github.com/sirupsen/logrus"
 )
 
 type PostgreSQLStorage struct {
-	log  *logrus.Logger
+	log  *zap.SugaredLogger
 	cfg  *config.Config
 	pool *pgxpool.Pool
 }
@@ -84,7 +86,6 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 
 // AddURLSBatch - функция добавления записей "пачкой"
 func (p *PostgreSQLStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
-
 	// Начало транзакции
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
@@ -134,7 +135,7 @@ func (p *PostgreSQLStorage) CheckBaseURLExist(ctx context.Context, link *models.
 	// Если ошибка ErrNoRows, значит запись отсутствует, не отдаем ошибку и возвращаем false
 	case pgx.ErrNoRows:
 		return false, nil
-	//если ошибки нет, то запись уже присуствует в БД, возвращаем true присваиваем объекту ID из БД
+	// если ошибки нет, то запись уже присуствует в БД, возвращаем true присваиваем объекту ID из БД
 	case nil:
 		link.ID = id
 		return true, nil
@@ -171,24 +172,10 @@ func dbConnect(ctx context.Context, cfg *config.Config) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-func NewPostgreSQLStorage(ctx context.Context, log *logrus.Logger, cfg *config.Config) *PostgreSQLStorage {
+func NewPostgreSQLStorage(ctx context.Context, log *zap.SugaredLogger, cfg *config.Config) *PostgreSQLStorage {
 	pool, err := dbConnect(ctx, cfg)
 	if err != nil {
 		log.Fatalf("can't create PostgreSQLStorage, err: %s", err)
-	}
-
-	//Костыль на случай отсутствия таблицы в БД
-	q := `
-	CREATE TABLE IF NOT EXISTS links (
-		id varchar(10) PRIMARY KEY NOT NULL UNIQUE,
-		baseURL text NOT NULL UNIQUE,
-		hash varchar(64)[] NOT NULL
-	)
-	`
-
-	_, err = pool.Exec(ctx, q)
-	if err != nil {
-		log.Errorf("can't do query, err: %s", err)
 	}
 
 	return &PostgreSQLStorage{

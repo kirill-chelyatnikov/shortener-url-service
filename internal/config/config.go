@@ -2,9 +2,10 @@ package config
 
 import (
 	"flag"
+	"go.uber.org/zap"
+
 	"github.com/caarlos0/env"
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -38,7 +39,7 @@ type Flags struct {
 }
 
 // GetConfig - функция получения конфига приложения
-func GetConfig(log *logrus.Logger, path string, fl *Flags) *Config {
+func GetConfig(log *zap.SugaredLogger, path string, fl *Flags) *Config {
 	// объявление структур конфига, переменных окружения, флагов
 	var cfg Config
 	var environment Environment

@@ -3,6 +3,12 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/go-chi/chi"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -11,22 +17,19 @@ import (
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 const testConfigURL = "../../config/config.yml"
 
 // инициализация необходимых зависимостей
-var log = logger.InitLogger()
-var fl = config.GetFlags()
-var cfg = config.GetConfig(log, testConfigURL, fl)
-var repository = storage.NewStorage(context.TODO(), log, cfg)
-var serviceURL = services.NewServiceURL(log, cfg, repository)
-var h = NewHandler(log, cfg, serviceURL)
+var (
+	log        = logger.InitLogger()
+	fl         = config.GetFlags()
+	cfg        = config.GetConfig(log, testConfigURL, fl)
+	repository = storage.NewStorage(context.TODO(), log, cfg)
+	serviceURL = services.NewServiceURL(log, cfg, repository)
+	h          = NewHandler(log, cfg, serviceURL)
+)
 
 func TestPostHandler(t *testing.T) {
 	type want struct {

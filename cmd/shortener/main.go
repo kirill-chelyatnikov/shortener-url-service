@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/handlers"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/server"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -25,7 +26,7 @@ func main() {
 	repository := storage.NewStorage(ctx, log, cfg)
 	defer func() {
 		if err := repository.Close(); err != nil {
-			log.Fatal(err)
+			log.Fatal(err.Error())
 		}
 	}()
 	ServiceURL := services.NewServiceURL(log, cfg, repository)

@@ -7,16 +7,17 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"go.uber.org/zap"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/exp/slices"
-	"io"
-	"net/http"
-	"strings"
 )
 
 const (
@@ -40,7 +41,7 @@ var ContentTypesToEncode = []string{
 }
 
 type Handler struct {
-	log     *logrus.Logger
+	log     *zap.SugaredLogger
 	cfg     *config.Config
 	service serviceInterface
 }
@@ -213,7 +214,7 @@ func (h *Handler) InitRoutes() chi.Router {
 	return router
 }
 
-func NewHandler(log *logrus.Logger, cfg *config.Config, service serviceInterface) *Handler {
+func NewHandler(log *zap.SugaredLogger, cfg *config.Config, service serviceInterface) *Handler {
 	return &Handler{
 		log:     log,
 		cfg:     cfg,

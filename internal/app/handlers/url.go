@@ -1,15 +1,15 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
+
 	"github.com/go-chi/chi"
 	"github.com/jackc/pgx/v5"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
-	"io"
-	"net/http"
 )
 
 // postHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/"
@@ -17,14 +17,13 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	cookieHash, err := r.Cookie("hash")
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		h.log.Errorf("can't get hash from cookie, err: %s", err)
 
 		return
 	}
-	//читаем тело запроса
+	// читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -40,7 +39,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}(r.Body)
 
-	//проверка на пустоту тела запроса
+	// проверка на пустоту тела запроса
 	if len(body) == 0 {
 		http.Error(w, "empty request body", http.StatusBadRequest)
 		h.log.Error("empty request body")
@@ -48,7 +47,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
+	// если тело запроса прочитано успешно, то генерируем ссылку и записываем её в хранилище
 	link := &models.Link{
 		BaseURL: string(body),
 		Hash:    cookieHash.Value,
@@ -65,13 +64,13 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	responseStatusCode := http.StatusCreated
 
-	//меняем статус код в зафисимости от того добавили мы запись или проапдейтили
+	// меняем статус код в зафисимости от того добавили мы запись или проапдейтили
 	if updated {
 		responseStatusCode = http.StatusConflict
 	}
 	w.WriteHeader(responseStatusCode)
 
-	//записываем ссылку в тело ответа
+	// записываем ссылку в тело ответа
 	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, link.ID)))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -84,9 +83,9 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 // getHandler - функция-хэндлер для обработки GET запросов, отслеживаемый путь: "/{id}"
 func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
-	//получаем интидификатор ссылки из GET-параметра
+	// получаем интидификатор ссылки из GET-параметра
 	id := chi.URLParam(r, "id")
 
 	/*
@@ -94,7 +93,7 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 		что роут GET "/" не зарегистрован в приложении. По дефолту отдается ошибка 405.
 	*/
 
-	//получение url по индетификатору, проверка на его существование
+	// получение url по индетификатору, проверка на его существование
 	url, err := h.service.Get(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -110,10 +109,9 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 
 // apiHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/api/shorten"
 func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	cookieHash, err := r.Cookie("hash")
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		h.log.Errorf("can't get hash from cookie, err: %s", err)
@@ -121,7 +119,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//читаем тело запроса
+	// читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -136,7 +134,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}(r.Body)
 
-	//проверка на пустоту тела запроса
+	// проверка на пустоту тела запроса
 	if len(body) == 0 {
 		http.Error(w, "empty request body", http.StatusBadRequest)
 		h.log.Error("empty request body")
@@ -144,7 +142,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//создаём структуры для получения и отправки данных
+	// создаём структуры для получения и отправки данных
 	apiHandlerRequest := &APIHandlerRequest{}
 	apiHandlerResponse := &APIHandlerResponse{}
 
@@ -160,7 +158,7 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//генерируем ссылку и записываем её в хранилище
+	// генерируем ссылку и записываем её в хранилище
 	link := &models.Link{
 		BaseURL: apiHandlerRequest.URL,
 		Hash:    cookieHash.Value,
@@ -175,10 +173,10 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//записываем результат в структуру ответа
+	// записываем результат в структуру ответа
 	apiHandlerResponse.Result = fmt.Sprintf("%s/%s", h.cfg.App.BaseURL, link.ID)
 
-	//записываем результат в виде json-объекта
+	// записываем результат в виде json-объекта
 	result, err := json.Marshal(apiHandlerResponse)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -187,18 +185,18 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//устанавливаем заголовок "application/json" и код ответа
+	// устанавливаем заголовок "application/json" и код ответа
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 	responseStatusCode := http.StatusCreated
 
-	//меняем статус код в зафисимости от того добавили мы запись или проапдейтили
+	// меняем статус код в зафисимости от того добавили мы запись или проапдейтили
 	if updated {
 		responseStatusCode = http.StatusConflict
 	}
 	w.WriteHeader(responseStatusCode)
 
-	//записываем результат в тело ответа
+	// записываем результат в тело ответа
 	_, err = w.Write(result)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -206,14 +204,12 @@ func (h *Handler) apiHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
-
 }
 
 func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	cookieHash, err := r.Cookie("hash")
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		h.log.Errorf("can't get hash from cookie, err: %s", err)
@@ -229,7 +225,7 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var result []*APIGETAllResponse
+	result := make([]*APIGETAllResponse, 0, len(links))
 
 	for _, v := range links {
 		result = append(result, &APIGETAllResponse{
@@ -246,11 +242,11 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//устанавливаем заголовок "application/json" и код ответа
+	// устанавливаем заголовок "application/json" и код ответа
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 
-	//записываем результат в тело ответа
+	// записываем результат в тело ответа
 	_, err = w.Write(jsonResult)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -261,7 +257,7 @@ func (h *Handler) apiGetAllURLS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) pingDB(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	conn, err := pgx.Connect(ctx, h.cfg.DB.CDN)
 	if err != nil {
@@ -289,7 +285,7 @@ func (h *Handler) pingDB(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
-	ctx := context.Background()
+	ctx := r.Context()
 
 	cookieHash, err := r.Cookie("hash")
 	if err != nil {
@@ -299,7 +295,7 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//читаем тело запроса
+	// читаем тело запроса
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -315,7 +311,7 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 		}
 	}(r.Body)
 
-	//проверка на пустоту тела запроса
+	// проверка на пустоту тела запроса
 	if len(body) == 0 {
 		http.Error(w, "empty request body", http.StatusBadRequest)
 		h.log.Error("empty request body")
