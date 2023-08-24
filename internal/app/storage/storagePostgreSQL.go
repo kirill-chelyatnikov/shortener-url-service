@@ -2,14 +2,19 @@ package storage
 
 import (
 	"context"
-	"go.uber.org/zap"
-
+	"embed"
 	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
+	"github.com/pressly/goose/v3"
+	"go.uber.org/zap"
 )
+
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
 
 type PostgreSQLStorage struct {
 	log  *zap.SugaredLogger
@@ -176,6 +181,22 @@ func NewPostgreSQLStorage(ctx context.Context, log *zap.SugaredLogger, cfg *conf
 	pool, err := dbConnect(ctx, cfg)
 	if err != nil {
 		log.Fatalf("can't create PostgreSQLStorage, err: %s", err)
+	}
+
+	goose.SetBaseFS(embedMigrations)
+
+	db, err := goose.OpenDBWithDriver("pgx", cfg.DB.CDN)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	defer db.Close()
+
+	if err = goose.SetDialect("postgres"); err != nil {
+		log.Fatalf(err.Error())
+	}
+
+	if err = goose.Up(db, "migrations"); err != nil {
+		log.Fatalf(err.Error())
 	}
 
 	return &PostgreSQLStorage{
