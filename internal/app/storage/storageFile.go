@@ -1,17 +1,19 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
-	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
-	"github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 	"os"
 	"sync"
+
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
+	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
 )
 
 type FileStorage struct {
-	log     *logrus.Logger
+	log     *zap.SugaredLogger
 	mutex   sync.RWMutex
 	file    *os.File
 	encoder *json.Encoder
@@ -19,7 +21,7 @@ type FileStorage struct {
 }
 
 // AddURL - функция записи данных в storage (file)
-func (s *FileStorage) AddURL(link *models.Link) error {
+func (s *FileStorage) AddURL(ctx context.Context, link *models.Link) error {
 	s.mutex.Lock()
 	if err := s.encoder.Encode(link); err != nil {
 		return fmt.Errorf("can't encode data to add it to file, err: %s", err)
@@ -31,7 +33,7 @@ func (s *FileStorage) AddURL(link *models.Link) error {
 }
 
 // GetURLByID - функция получения записи из storage (file)
-func (s *FileStorage) GetURLByID(id string) (string, error) {
+func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -56,6 +58,24 @@ func (s *FileStorage) GetURLByID(id string) (string, error) {
 	return "", fmt.Errorf("can't find URL by id: %s", id)
 }
 
+// функции-заглушки для удовлетворения интерфейсу репозитория
+
+func (s *FileStorage) GetAllURLSByHash(_ context.Context, hash string) ([]*models.Link, error) {
+	return nil, nil
+}
+
+func (s *FileStorage) AddURLSBatch(_ context.Context, links []*models.Link) error {
+	return nil
+}
+
+func (s *FileStorage) CheckBaseURLExist(_ context.Context, link *models.Link) (bool, error) {
+	return false, nil
+}
+
+func (s *FileStorage) UpdateHash(_ context.Context, link *models.Link) error {
+	return nil
+}
+
 func (s *FileStorage) Close() error {
 	err := s.file.Close()
 	if err != nil {
@@ -65,8 +85,8 @@ func (s *FileStorage) Close() error {
 	return nil
 }
 
-func NewFileStorage(log *logrus.Logger, cfg *config.Config) *FileStorage {
-	f, err := os.OpenFile(cfg.App.FileStorage, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0777)
+func NewFileStorage(log *zap.SugaredLogger, cfg *config.Config) *FileStorage {
+	f, err := os.OpenFile(cfg.App.FileStorage, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o777)
 	if err != nil {
 		log.Fatalf("cant't create file storage, err: %s", err)
 	}

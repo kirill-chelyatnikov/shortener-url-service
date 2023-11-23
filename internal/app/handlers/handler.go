@@ -2,22 +2,34 @@ package handlers
 
 import (
 	"compress/gzip"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"go.uber.org/zap"
+	"io"
+	"net/http"
+	"strings"
+
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/config"
-	"github.com/sirupsen/logrus"
+	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 	"golang.org/x/exp/slices"
-	"io"
-	"net/http"
-	"strings"
 )
 
 const (
-	HomeURL   = "/"
-	DecodeURL = "/{id}"
-	APIURL    = "/api/shorten"
+	HomeURL    = "/"
+	DecodeURL  = "/{id}"
+	APIURL     = "/api/shorten"
+	APIALLURLS = "/api/user/urls"
+	PING       = "/ping"
+	APIBATCH   = "/api/shorten/batch"
 )
+
+var CookieKey = []byte("cookie_key_7385746739")
 
 var ContentTypesToEncode = []string{
 	"application/javascript",
@@ -29,7 +41,7 @@ var ContentTypesToEncode = []string{
 }
 
 type Handler struct {
-	log     *logrus.Logger
+	log     *zap.SugaredLogger
 	cfg     *config.Config
 	service serviceInterface
 }
@@ -42,10 +54,26 @@ type APIHandlerResponse struct {
 	Result string `json:"result"`
 }
 
+type APIGETAllResponse struct {
+	ShortURL    string `json:"short_url"`
+	OriginalURL string `json:"original_url"`
+}
+
+type APIBatchRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type APIBatchResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
 type serviceInterface interface {
-	Add(link *models.Link) error
-	Get(id string) (string, error)
-	GenerateShortURL() string
+	Add(ctx context.Context, link *models.Link) (bool, error)
+	AddBatch(ctx context.Context, links []*models.Link) error
+	Get(ctx context.Context, id string) (string, error)
+	GetAll(ctx context.Context, hash string) ([]*models.Link, error)
 }
 
 type gzipWriter struct {
@@ -125,6 +153,46 @@ func GzipMiddlewareRequest(next http.Handler) http.Handler {
 	})
 }
 
+func AuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authCookie, _ := r.Cookie("auth")
+		hashCookie, _ := r.Cookie("hash")
+		if authCookie == nil || hashCookie == nil || !verifyCookie(authCookie.Value, hashCookie.Value) {
+			setAuthCookie(w, r)
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func setAuthCookie(w http.ResponseWriter, r *http.Request) *http.Cookie {
+	cookie := pkg.GenerateRandomString()
+	authCookie := &http.Cookie{Name: "auth", Value: cookie, Path: "/"}
+	hashCookie := &http.Cookie{Name: "hash", Value: encryptCookie([]byte(cookie)), Path: "/"}
+	http.SetCookie(w, authCookie)
+	http.SetCookie(w, hashCookie)
+	r.Header.Set("Cookie", fmt.Sprintf("auth=%s; hash=%s", authCookie.Value, hashCookie.Value))
+	return hashCookie
+}
+
+func encryptCookie(cookie []byte) string {
+	hmacCookie := hmac.New(sha256.New, CookieKey)
+	hmacCookie.Write(cookie)
+
+	return hex.EncodeToString(hmacCookie.Sum(nil))
+}
+
+func verifyCookie(authCookie, hashCookie string) bool {
+	hashCookieBytes, _ := hex.DecodeString(hashCookie)
+
+	hm := hmac.New(sha256.New, CookieKey)
+	hm.Write([]byte(authCookie))
+
+	res := hmac.Equal(hm.Sum(nil), hashCookieBytes)
+
+	return res
+}
+
 func (h *Handler) InitRoutes() chi.Router {
 	compressor := &Compressor{}
 	router := chi.NewRouter()
@@ -134,15 +202,19 @@ func (h *Handler) InitRoutes() chi.Router {
 	router.Use(middleware.Recoverer)
 	router.Use(compressor.GzipMiddlewareResponse)
 	router.Use(GzipMiddlewareRequest)
+	router.Use(AuthMiddleware)
 
 	router.Post(HomeURL, h.postHandler)
 	router.Post(APIURL, h.apiHandler)
+	router.Post(APIBATCH, h.apiBatch)
 	router.Get(DecodeURL, h.getHandler)
+	router.Get(APIALLURLS, h.apiGetAllURLS)
+	router.Get(PING, h.pingDB)
 
 	return router
 }
 
-func NewHandler(log *logrus.Logger, cfg *config.Config, service serviceInterface) *Handler {
+func NewHandler(log *zap.SugaredLogger, cfg *config.Config, service serviceInterface) *Handler {
 	return &Handler{
 		log:     log,
 		cfg:     cfg,

@@ -1,7 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
 	"github.com/go-chi/chi"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -10,22 +17,19 @@ import (
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"strings"
-	"testing"
 )
 
 const testConfigURL = "../../config/config.yml"
 
-//инициализация необходимых зависимостей
-var log = logger.InitLogger()
-var fl = config.GetFlags()
-var cfg = config.GetConfig(log, testConfigURL, fl)
-var repository = storage.NewStorage(log, cfg)
-var serviceURL = services.NewServiceURL(log, cfg, repository)
-var h = NewHandler(log, cfg, serviceURL)
+// инициализация необходимых зависимостей
+var (
+	log        = logger.InitLogger()
+	fl         = config.GetFlags()
+	cfg        = config.GetConfig(log, testConfigURL, fl)
+	repository = storage.NewStorage(context.TODO(), log, cfg)
+	serviceURL = services.NewServiceURL(log, cfg, repository)
+	h          = NewHandler(log, cfg, serviceURL)
+)
 
 func TestPostHandler(t *testing.T) {
 	type want struct {
@@ -58,7 +62,7 @@ func TestPostHandler(t *testing.T) {
 		},
 	}
 
-	router := chi.NewRouter()
+	router := h.InitRoutes()
 	router.Post("/", h.postHandler)
 	ts := httptest.NewServer(router)
 	defer ts.Close()
@@ -81,7 +85,7 @@ func TestPostHandler(t *testing.T) {
 			if !tt.wantErr {
 				id := strings.TrimPrefix(string(body),
 					fmt.Sprintf("http://%s/", cfg.Server.Address))
-				_, err = serviceURL.Get(id)
+				_, err = serviceURL.Get(context.TODO(), id)
 				assert.NoError(t, err)
 
 				return
@@ -128,7 +132,7 @@ func TestGetHandler(t *testing.T) {
 	router := chi.NewRouter()
 	router.Get("/{id}", h.getHandler)
 
-	err := repository.AddURL(&models.Link{
+	err := repository.AddURL(context.TODO(), &models.Link{
 		ID:      "testUser",
 		BaseURL: "https://google.com",
 	})
@@ -203,7 +207,7 @@ func TestApiHandler(t *testing.T) {
 		},
 	}
 
-	router := chi.NewRouter()
+	router := h.InitRoutes()
 	router.Post("/api/shorten", h.apiHandler)
 	ts := httptest.NewServer(router)
 	defer ts.Close()

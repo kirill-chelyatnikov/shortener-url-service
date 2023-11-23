@@ -1,0 +1,14 @@
+version: '3.3'
+
+services:
+  db:
+    image: postgres:15.3-alpine3.18
+    restart: always
+    environment:
+      POSTGRES_DB: "shortener_db"
+      POSTGRES_USER: "shortener_user"
+      POSTGRES_PASSWORD: "shortener115"
+    ports:
+      - 5432:5432
+    volumes:
+      - /var/lib/pg
