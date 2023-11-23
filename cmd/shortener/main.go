@@ -3,9 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"os/signal"
-	"syscall"
-
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/handlers"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/server"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -18,8 +15,6 @@ const configURL = "internal/config/config.yml"
 
 func main() {
 	ctx := context.Background()
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	fl := config.GetFlags()
 	flag.Parse()
