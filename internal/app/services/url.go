@@ -9,7 +9,7 @@ import (
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 )
 
-const DELETETIMEDELAY = 15 * time.Second
+const DELETETIMEDELAY = 3 * time.Second
 
 // Add - функция сервиса для добавления/изменения записи
 func (s *ServiceURL) Add(ctx context.Context, link *models.Link) (bool, error) {
@@ -99,6 +99,7 @@ func (s *ServiceURL) CheckBatches(ctx context.Context) {
 					s.log.Errorf("can't delete id's, err: %s", err)
 					return
 				}
+				s.log.Info(">10, successful deleted")
 				idsToDelete = nil
 			}
 		//Производим удаление каждые 15 секунд
@@ -109,7 +110,10 @@ func (s *ServiceURL) CheckBatches(ctx context.Context) {
 					s.log.Errorf("can't delete id's, err: %s", err)
 					return
 				}
+				s.log.Info("timer end, successful deleted")
 				idsToDelete = nil
+			} else {
+				s.log.Info("nothing to delete")
 			}
 			timer.Reset(DELETETIMEDELAY)
 		case <-ctx.Done():

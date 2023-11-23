@@ -104,6 +104,8 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 
 	if link.IsDeleted {
 		w.WriteHeader(http.StatusGone)
+		h.log.Infof("Url %s deleted", link.BaseURL)
+		return
 	}
 
 	w.Header().Set("Location", link.BaseURL)
