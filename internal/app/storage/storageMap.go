@@ -32,15 +32,15 @@ func (s *MapStorage) AddURL(ctx context.Context, link *models.Link) error {
 }
 
 // GetURLByID - функция получения записи из storage (map)
-func (s *MapStorage) GetURLByID(ctx context.Context, id string) (string, error) {
+func (s *MapStorage) GetURLByID(ctx context.Context, id string) (*models.Link, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
 	if _, ok := s.data[id]; !ok {
-		return "", fmt.Errorf("can't find URL by id: %s", id)
+		return nil, fmt.Errorf("can't find URL by id: %s", id)
 	}
 
-	return s.data[id].BaseURL, nil
+	return &models.Link{BaseURL: s.data[id].BaseURL}, nil
 }
 
 // GetAllURLSByHash - функция получения всех записей по хешу из storage (map)
@@ -65,6 +65,10 @@ func (s *MapStorage) GetAllURLSByHash(ctx context.Context, hash string) ([]*mode
 // функции-заглушки для удовлетворения интерфейсу репозитория
 
 func (s *MapStorage) AddURLSBatch(ctx context.Context, links []*models.Link) error {
+	return nil
+}
+
+func (s *MapStorage) DeleteURLSBatch(ctx context.Context, links []string) error {
 	return nil
 }
 

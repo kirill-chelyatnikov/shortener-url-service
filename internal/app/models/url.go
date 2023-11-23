@@ -5,4 +5,5 @@ type Link struct {
 	BaseURL       string
 	CorrelationID string
 	Hash          string
+	IsDeleted     bool
 }

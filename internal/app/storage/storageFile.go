@@ -33,7 +33,7 @@ func (s *FileStorage) AddURL(ctx context.Context, link *models.Link) error {
 }
 
 // GetURLByID - функция получения записи из storage (file)
-func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error) {
+func (s *FileStorage) GetURLByID(ctx context.Context, id string) (*models.Link, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -43,7 +43,7 @@ func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error)
 	}
 
 	s.decoder = json.NewDecoder(f)
-	var link models.Link
+	var link *models.Link
 
 	for s.decoder.More() {
 		err = s.decoder.Decode(&link)
@@ -51,11 +51,11 @@ func (s *FileStorage) GetURLByID(ctx context.Context, id string) (string, error)
 			s.log.Fatalf("can't decode link, err: %s", err)
 		}
 		if link.ID == id {
-			return link.BaseURL, nil
+			return link, nil
 		}
 	}
 
-	return "", fmt.Errorf("can't find URL by id: %s", id)
+	return nil, fmt.Errorf("can't find URL by id: %s", id)
 }
 
 // функции-заглушки для удовлетворения интерфейсу репозитория
@@ -65,6 +65,10 @@ func (s *FileStorage) GetAllURLSByHash(_ context.Context, hash string) ([]*model
 }
 
 func (s *FileStorage) AddURLSBatch(_ context.Context, links []*models.Link) error {
+	return nil
+}
+
+func (s *FileStorage) DeleteURLSBatch(_ context.Context, links []string) error {
 	return nil
 }
 

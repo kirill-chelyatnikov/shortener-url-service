@@ -3,10 +3,13 @@ package services
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 )
+
+const DELETETIMEDELAY = 15 * time.Second
 
 // Add - функция сервиса для добавления/изменения записи
 func (s *ServiceURL) Add(ctx context.Context, link *models.Link) (bool, error) {
@@ -49,12 +52,70 @@ func (s *ServiceURL) AddBatch(ctx context.Context, links []*models.Link) error {
 	return s.repository.AddURLSBatch(ctx, links)
 }
 
-// Get - функция сервиса для получение записи по ID
-func (s *ServiceURL) Get(ctx context.Context, id string) (string, error) {
+// Get - функция сервиса для получения записи по ID
+func (s *ServiceURL) Get(ctx context.Context, id string) (*models.Link, error) {
 	return s.repository.GetURLByID(ctx, id)
 }
 
 // GetAll - функция сервиса для получения всех записей по хешу
 func (s *ServiceURL) GetAll(ctx context.Context, hash string) ([]*models.Link, error) {
 	return s.repository.GetAllURLSByHash(ctx, hash)
+}
+
+// DeleteBatch - функция сервиса для удаления записей пачкой
+func (s *ServiceURL) DeleteBatch(ctx context.Context, links []string, hash string) error {
+	//Проверяем какие URL принадлежат пользователю
+	userLinks, err := s.repository.GetAllURLSByHash(ctx, hash)
+	if err != nil {
+		return err
+	}
+
+	idsMap := make(map[string]struct{})
+	for _, v := range links {
+		idsMap[v] = struct{}{}
+	}
+
+	//Проверенные URL пишем в канал
+	for _, v := range userLinks {
+		if _, ok := idsMap[v.ID]; ok {
+			s.deleteCh <- v.ID
+		}
+	}
+
+	return nil
+}
+
+func (s *ServiceURL) CheckBatches(ctx context.Context) {
+	idsToDelete := make([]string, 0)
+	timer := time.NewTimer(DELETETIMEDELAY)
+	for {
+		select {
+		//При записи в канал проверяем кол-во значений, если > 10, производим удаление
+		case id := <-s.deleteCh:
+			idsToDelete = append(idsToDelete, id)
+			if len(idsToDelete) >= 10 {
+				err := s.repository.DeleteURLSBatch(ctx, idsToDelete)
+				if err != nil {
+					s.log.Errorf("can't delete id's, err: %s", err)
+					return
+				}
+				idsToDelete = nil
+			}
+		//Производим удаление каждые 15 секунд
+		case <-timer.C:
+			if len(idsToDelete) > 0 {
+				err := s.repository.DeleteURLSBatch(ctx, idsToDelete)
+				if err != nil {
+					s.log.Errorf("can't delete id's, err: %s", err)
+					return
+				}
+				idsToDelete = nil
+			}
+			timer.Reset(DELETETIMEDELAY)
+		case <-ctx.Done():
+			close(s.deleteCh)
+			s.log.Info("ch closed")
+			return
+		}
+	}
 }
