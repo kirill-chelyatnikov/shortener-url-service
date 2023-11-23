@@ -9,7 +9,10 @@ import (
 	"github.com/kirill-chelyatnikov/shortener-url-service/pkg"
 )
 
-const DELETETIMEDELAY = 3 * time.Second
+const (
+	deleteDelay = 3 * time.Second
+	batchCount  = 10
+)
 
 // Add - функция сервиса для добавления/изменения записи
 func (s *ServiceURL) Add(ctx context.Context, link *models.Link) (bool, error) {
@@ -87,39 +90,35 @@ func (s *ServiceURL) DeleteBatch(ctx context.Context, links []string, hash strin
 
 func (s *ServiceURL) CheckBatches(ctx context.Context) {
 	idsToDelete := make([]string, 0)
-	timer := time.NewTimer(DELETETIMEDELAY)
+	ticker := time.NewTicker(deleteDelay)
 	for {
 		select {
-		//При записи в канал проверяем кол-во значений, если > 10, производим удаление
-		case id := <-s.deleteCh:
-			idsToDelete = append(idsToDelete, id)
-			if len(idsToDelete) >= 10 {
-				err := s.repository.DeleteURLSBatch(ctx, idsToDelete)
-				if err != nil {
-					s.log.Errorf("can't delete id's, err: %s", err)
-					return
-				}
-				s.log.Info(">10, successful deleted")
-				idsToDelete = nil
-			}
-		//Производим удаление каждые 15 секунд
-		case <-timer.C:
-			if len(idsToDelete) > 0 {
-				err := s.repository.DeleteURLSBatch(ctx, idsToDelete)
-				if err != nil {
-					s.log.Errorf("can't delete id's, err: %s", err)
-					return
-				}
-				s.log.Info("timer end, successful deleted")
-				idsToDelete = nil
-			} else {
-				s.log.Info("nothing to delete")
-			}
-			timer.Reset(DELETETIMEDELAY)
 		case <-ctx.Done():
 			close(s.deleteCh)
 			s.log.Info("ch closed")
 			return
+		//При записи в канал проверяем кол-во значений, если > 10, производим удаление
+		case id := <-s.deleteCh:
+			idsToDelete = append(idsToDelete, id)
+			if len(idsToDelete) < batchCount {
+				continue
+			}
+		//Производим удаление каждые 15 секунд
+		case <-ticker.C:
+		default:
+			continue
+		}
+
+		if len(idsToDelete) > 0 {
+			err := s.repository.DeleteURLSBatch(ctx, idsToDelete)
+			if err != nil {
+				s.log.Errorf("can't delete id's, err: %s", err)
+				return
+			}
+			s.log.Info("successful deleted")
+			idsToDelete = nil
+		} else {
+			s.log.Info("nothing to delete")
 		}
 	}
 }

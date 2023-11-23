@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
+
+	"go.uber.org/zap"
 
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/models"
 )
@@ -36,11 +37,12 @@ func (s *MapStorage) GetURLByID(ctx context.Context, id string) (*models.Link, e
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
-	if _, ok := s.data[id]; !ok {
+	link, ok := s.data[id]
+	if !ok {
 		return nil, fmt.Errorf("can't find URL by id: %s", id)
 	}
 
-	return &models.Link{BaseURL: s.data[id].BaseURL}, nil
+	return link, nil
 }
 
 // GetAllURLSByHash - функция получения всех записей по хешу из storage (map)
@@ -69,6 +71,15 @@ func (s *MapStorage) AddURLSBatch(ctx context.Context, links []*models.Link) err
 }
 
 func (s *MapStorage) DeleteURLSBatch(ctx context.Context, links []string) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	for _, id := range links {
+		if link, exists := s.data[id]; exists {
+			link.IsDeleted = true
+		}
+	}
+
 	return nil
 }
 
