@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/handlers"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/server"
 	"github.com/kirill-chelyatnikov/shortener-url-service/internal/app/services"
@@ -30,6 +29,7 @@ func main() {
 		}
 	}()
 	ServiceURL := services.NewServiceURL(log, cfg, repository)
+	go ServiceURL.CheckBatches(ctx)
 	handler := handlers.NewHandler(log, cfg, ServiceURL)
 	server.HTTPServerStart(log, cfg, handler.InitRoutes())
 }

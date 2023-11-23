@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"embed"
+	"errors"
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
@@ -39,11 +40,12 @@ func (p *PostgreSQLStorage) AddURL(ctx context.Context, link *models.Link) error
 }
 
 // GetURLByID - функция получения записи из storage (PostgreSQL)
-func (p *PostgreSQLStorage) GetURLByID(ctx context.Context, id string) (string, error) {
-	var res string
+func (p *PostgreSQLStorage) GetURLByID(ctx context.Context, id string) (*models.Link, error) {
+	var link models.Link
+
 	q := `
 	SELECT 
-	    baseurl 
+	    baseurl, is_deleted
 	FROM links
 	WHERE 
 	    id = $1
@@ -51,12 +53,12 @@ func (p *PostgreSQLStorage) GetURLByID(ctx context.Context, id string) (string, 
 
 	row := p.pool.QueryRow(ctx, q, id)
 
-	err := row.Scan(&res)
+	err := row.Scan(&link.BaseURL, &link.IsDeleted)
 	if err != nil {
-		return "", NewDBError("GetURLByID", "can't scan", err)
+		return nil, NewDBError("GetURLByID", "can't scan", err)
 	}
 
-	return res, nil
+	return &link, nil
 }
 
 // GetAllURLSByHash - функция получения всех записей по хешу из storage (PostgreSQL)
@@ -65,9 +67,9 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 	q := `
 	SELECT 
 		id, baseurl
-	FROM links
+	FROM links ls
 	WHERE 
-	    hash = $1
+	    $1 = ANY (ls.hash)
 	`
 
 	rows, err := p.pool.Query(ctx, q, hash)
@@ -86,7 +88,43 @@ func (p *PostgreSQLStorage) GetAllURLSByHash(ctx context.Context, hash string) (
 		links = append(links, &link)
 	}
 
+	if len(links) == 0 {
+		return nil, NewDBError("GetAllURLSByHash", "", errors.New("empty result"))
+	}
+
 	return links, nil
+}
+
+// DeleteURLSBatch - функция добавления записей "пачкой"
+func (p *PostgreSQLStorage) DeleteURLSBatch(ctx context.Context, links []string) error {
+	// Начало транзакции
+	tx, err := p.pool.Begin(ctx)
+	if err != nil {
+		return NewDBError("DeleteURLSBatch", "can't begin tx", err)
+	}
+
+	// Обязательный откат транзакции при возникновении ошибок
+	defer tx.Rollback(ctx)
+
+	q := `
+	UPDATE links as ls
+	SET is_deleted = true 
+	WHERE 
+	    ls.id = $1
+	`
+
+	for _, v := range links {
+		_, err = tx.Exec(ctx, q, v)
+		if err != nil {
+			return NewDBError("DeleteURLSBatch", "can't exec tx", err)
+		}
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return NewDBError("DeleteURLSBatch", "can't commit tx", err)
+	}
+
+	return nil
 }
 
 // AddURLSBatch - функция добавления записей "пачкой"

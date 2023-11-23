@@ -21,12 +21,13 @@ import (
 )
 
 const (
-	HomeURL    = "/"
-	DecodeURL  = "/{id}"
-	APIURL     = "/api/shorten"
-	APIALLURLS = "/api/user/urls"
-	PING       = "/ping"
-	APIBATCH   = "/api/shorten/batch"
+	HomeURL     = "/"
+	DecodeURL   = "/{id}"
+	APIURL      = "/api/shorten"
+	APIALLURLS  = "/api/user/urls"
+	PING        = "/ping"
+	APIBATCH    = "/api/shorten/batch"
+	DELETEBATCH = "/api/user/urls"
 )
 
 var CookieKey = []byte("cookie_key_7385746739")
@@ -69,11 +70,16 @@ type APIBatchResponse struct {
 	ShortURL      string `json:"short_url"`
 }
 
+type APIDeleteBatchRequest struct {
+	Ids []string `json:"ids"`
+}
+
 type serviceInterface interface {
 	Add(ctx context.Context, link *models.Link) (bool, error)
 	AddBatch(ctx context.Context, links []*models.Link) error
-	Get(ctx context.Context, id string) (string, error)
+	Get(ctx context.Context, id string) (*models.Link, error)
 	GetAll(ctx context.Context, hash string) ([]*models.Link, error)
+	DeleteBatch(ctx context.Context, links []string, hash string) error
 }
 
 type gzipWriter struct {
@@ -132,7 +138,7 @@ func (c *Compressor) GzipMiddlewareResponse(next http.Handler) http.Handler {
 // GzipMiddlewareRequest - middleware обработки запроса от клиента в формате gzip
 func GzipMiddlewareRequest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// проверяем Content-Encoding. В случаи успеха - декодированный ответ подствляем в Body
+		// Проверяем Content-Encoding. В случаи успеха - декодированный ответ подствляем в Body
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			gz, err := gzip.NewReader(r.Body)
 			if err != nil {
@@ -210,7 +216,7 @@ func (h *Handler) InitRoutes() chi.Router {
 	router.Get(DecodeURL, h.getHandler)
 	router.Get(APIALLURLS, h.apiGetAllURLS)
 	router.Get(PING, h.pingDB)
-
+	router.Delete(DELETEBATCH, h.apiBatchDelete)
 	return router
 }
 

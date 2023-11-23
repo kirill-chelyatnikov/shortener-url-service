@@ -64,7 +64,7 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 
 	responseStatusCode := http.StatusCreated
 
-	// меняем статус код в зафисимости от того добавили мы запись или проапдейтили
+	// меняем статус код в зависимости от того добавили мы запись или проапдейтили
 	if updated {
 		responseStatusCode = http.StatusConflict
 	}
@@ -85,16 +85,16 @@ func (h *Handler) postHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// получаем интидификатор ссылки из GET-параметра
+	// получаем идентификатор ссылки из GET-параметра
 	id := chi.URLParam(r, "id")
 
 	/*
-		отсутствие проверки на пустоту передаваемого интидификатора обусловлена тем,
-		что роут GET "/" не зарегистрован в приложении. По дефолту отдается ошибка 405.
+		Отсутствие проверки на пустоту передаваемого идентификатора обусловлена тем,
+		что роут GET "/" не зарегистрирован в приложении. По дефолту отдается ошибка 405.
 	*/
 
 	// получение url по индетификатору, проверка на его существование
-	url, err := h.service.Get(ctx, id)
+	link, err := h.service.Get(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		h.log.Error(err)
@@ -102,9 +102,15 @@ func (h *Handler) getHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Location", url)
+	if link.IsDeleted {
+		w.WriteHeader(http.StatusGone)
+		h.log.Infof("Url %s deleted", link.BaseURL)
+		return
+	}
+
+	w.Header().Set("Location", link.BaseURL)
 	w.WriteHeader(http.StatusTemporaryRedirect)
-	h.log.Infof("successful redirect to: %s", url)
+	h.log.Infof("successful redirect to: %s", link.BaseURL)
 }
 
 // apiHandler - функция-хэндлер для обработки POST запросов, отслеживаемый путь: "/api/shorten"
@@ -376,4 +382,58 @@ func (h *Handler) apiBatch(w http.ResponseWriter, r *http.Request) {
 
 		return
 	}
+}
+
+func (h *Handler) apiBatchDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	cookieHash, err := r.Cookie("hash")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadGateway)
+		h.log.Errorf("can't get hash from cookie, err: %s", err)
+
+		return
+	}
+
+	// читаем тело запроса
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		h.log.Errorf("unable to read request body, err: %s", err)
+
+		return
+	}
+
+	defer func(Body io.ReadCloser) {
+		err = Body.Close()
+		if err != nil {
+			h.log.Errorf("can't close body request, err: %s", err)
+		}
+	}(r.Body)
+
+	// проверка на пустоту тела запроса
+	if len(body) == 0 {
+		http.Error(w, "empty request body", http.StatusBadRequest)
+		h.log.Error("empty request body")
+
+		return
+	}
+
+	apiDeleteBatchRequest := make([]string, 0)
+	err = json.Unmarshal(body, &apiDeleteBatchRequest)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.log.Errorf("cant't unmarshal request, err: %s", err)
+
+		return
+	}
+
+	err = h.service.DeleteBatch(ctx, apiDeleteBatchRequest, cookieHash.Value)
+	if err != nil {
+		h.log.Errorf("can't delete id's, err: %s", err)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusAccepted)
 }
